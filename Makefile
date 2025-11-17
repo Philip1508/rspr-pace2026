@@ -1,4 +1,4 @@
-CC=g++
+CC=clang++
 CC64=CC
 CFLAGS=-O2 -std=c++0x -march=native
 OMPFLAGS=-fopenmp
