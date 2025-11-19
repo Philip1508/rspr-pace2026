@@ -39,7 +39,7 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 #include <list>
 #include <deque>
 #include "Node.h"
-#include "LCA.h"
+#include "../UndecipheredComponents/LCA.h"
 #include <map>
 #include <limits>
 //#include "ClusterInstance.h"

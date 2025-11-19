@@ -177,12 +177,12 @@ total exact drSPR=4
 #include <list>
 #include "rspr.h"
 
-#include "Forest.h"
-#include "ClusterForest.h"
-#include "LCA.h"
-#include "ClusterInstance.h"
-#include "UndoMachine.h"
-#include "lgt.h"
+#include "../DataStructures/Forest.h"
+#include "../DataStructures/ClusterForest.h"
+#include "../UndecipheredComponents/LCA.h"
+#include "../DataStructures/ClusterInstance.h"
+#include "../DataStructures/UndoMachine.h"
+#include "../UndecipheredComponents/lgt.h"
 
 using namespace std;
 

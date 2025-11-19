@@ -43,12 +43,12 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 #include <set>
 #include <list>
 #include <algorithm>
-#include "Forest.h"
-#include "ClusterForest.h"
+#include "../DataStructures/Forest.h"
+#include "../DataStructures/ClusterForest.h"
 #include "LCA.h"
-#include "ClusterInstance.h"
-#include "SiblingPair.h"
-#include "UndoMachine.h"
+#include "../DataStructures/ClusterInstance.h"
+#include "../DataStructures/SiblingPair.h"
+#include "../DataStructures/UndoMachine.h"
 
 bool LGT_MOVE_PARENT = false;
 bool LGT_MOVE_INDIVIDUAL_NODE = false;
