@@ -41,6 +41,8 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 //#define DEBUG_CASE_COUNTER 1
 //#define MULT_PICK_LARGEST_GROUP 1
 
+#pragma once
+
 #include <cstdio>
 #include <cstdlib>
 #include <string>
@@ -60,7 +62,11 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 #include "../DataStructures/SiblingPair.h"
 #include "../DataStructures/UndoMachine.h"
 
+#include "Utility/rSprUtility.h"
+
 using namespace std;
+
+
 
 enum RELAXATION {STRICT, NEGATIVE_RELAXED, ALL_RELAXED};
 
@@ -89,6 +95,9 @@ int rSPR_worse_3_approx(Node *subtree, Forest *T1, Forest *T2, bool sync);
 int rSPR_worse_3_approx_binary_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, list<Node *> *sibling_pairs, Forest **F1, Forest **F2, bool save_forests);
 int rSPR_worse_3_approx_binary(Forest *T1, Forest *T2, bool sync);
 int rSPR_worse_3_approx_binary(Forest *T1, Forest *T2);
+
+
+
 int rSPR_branch_and_bound(Forest *T1, Forest *T2);
 int rSPR_branch_and_bound(Forest *T1, Forest *T2, int k);
 int rSPR_branch_and_bound(Forest *T1, Forest *T2, int k,
@@ -106,6 +115,9 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 		set<SiblingPair> *sibling_pairs, list<Node *> *singletons, bool cut_b_only,
 		list<pair<Forest,Forest> > *AFs, list<Node *> *protected_stack,
 		int *num_ties, Node *prev_T1_a, Node *prev_T1_c);
+
+
+
 int rSPR_total_approx_distance(Node *T1, vector<Node *> &gene_trees);
 int rSPR_total_approx_distance(Node *T1, vector<Node *> &gene_trees,
 		int threshold);
@@ -130,6 +142,9 @@ void rf_pairwise_distance_unrooted(Node *T1, vector<Node *> &gene_trees);
 void rf_pairwise_distance_unrooted(Node *T1, vector<Node *> &gene_trees, int start, int end);
 int rSPR_total_distance_unrooted(Node *T1, vector<Node *> &gene_trees, int threshold);
 int rSPR_total_distance_unrooted(Node *T1, vector<Node *> &gene_trees, int threshold, vector<int> *original_scores);
+
+
+
 int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, Forest **out_F1, Forest **out_F2);
 int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, map<string, int> *label_map, map<int, string> *reverse_label_map);
 int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, map<string, int> *label_map, map<int, string> *reverse_label_map, int min_k, int max_k);
@@ -137,10 +152,15 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2);
 int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose);
 int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, int min_k, int max_k);
 int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, map<string, int> *label_map, map<int, string> *reverse_label_map, int min_k, int max_k, Forest **out_F1, Forest **out_F2);
+
+
 void reduction_leaf_mult(Forest *T1, Forest *T2);
 void reduction_leaf(Forest *T1, Forest *T2);
 void reduction_leaf(Forest *T1, Forest *T2, UndoMachine *um);
-bool chain_match(Node *T1_node, Node *T2_node, Node *T2_node_end);
+
+
+
+
 Node *find_subtree_of_approx_distance(Node *n, Forest *F1, Forest *F2, int target_size);
 Node *find_best_root(Node *T1, Node *T2);
 double find_best_root_acc(Node *T1, Node *T2);
@@ -166,9 +186,13 @@ void count_in_out(Node *n, vector<int> &num_in, vector<int> &num_out,
 		set<string, StringCompare> &outgroup);
 void randomize_tree_with_spr(Node* T1, Node* T2, int count);
 /*Joel's part*/
+
+
 int rSPR_branch_and_bound_simple_clustering(Forest *T1, Forest *T2, bool verbose, map<string, int> *label_map, map<int, string> *reverse_label_map);
 int rSPR_branch_and_bound_simple_clustering(Forest *T1, Forest *T2);
 int rSPR_branch_and_bound_simple_clustering(Forest *T1, Forest *T2, bool verbose);
+
+
 int rSPR_total_distance(Forest *T1, vector<Node *> &gene_trees);
 
 bool BB = false;
@@ -226,6 +250,8 @@ bool PREFER_NONBRANCHING = false;
 int CLUSTER_TUNE = -1;
 int SIMPLE_UNROOTED_LEAF = 0;
 bool SHOW_CLUSTERS = false;
+
+
 
 class ProblemSolution {
 public:
@@ -2823,7 +2849,7 @@ if(!sibling_pairs->empty()) {
 		}
 		else if (APPROX_REVERSE_CUT_ONE_B_2) {
 			if (T2_c->parent() != NULL
-				&& chain_match(T1_s, T2_c->get_sibling(), T2_a) //)
+				&& rSprUtility::chain_match(T1_s, T2_c->get_sibling(), T2_a) //)
 						&& (!APPROX_EDGE_PROTECTION || !T2_a->is_protected()))
 			cut_a_only = true;
 		}
@@ -4063,7 +4089,7 @@ cout << "  ";
 					}
 				}
 				else if (REVERSE_CUT_ONE_B_2 && T2_c->parent() != NULL
-						&& chain_match(T1_s, T2_c->get_sibling(), T2_a)) {
+						&& rSprUtility::chain_match(T1_s, T2_c->get_sibling(), T2_a)) {
 					cut_a_only = true;
 					cut_b_only=false;
 					cob=false;
@@ -5660,54 +5686,7 @@ void reduction_leaf(Forest *T1, Forest *T2, UndoMachine *um) {
 /* return true if T1_node matches the chain between T2_node and
 	 T2_node_end
 */
-bool chain_match(Node *T1_node, Node *T2_node, Node *T2_node_end) {
-	Node *T1_pendant;
-	Node *T2_pendant;
-	bool pendant_found = false;
-	if (T2_node->is_leaf())
-		return false;
-	// T1_node is a leaf
-	if (T1_node->is_leaf()) {
-		T1_pendant = T1_node;
-		if (T1_pendant->get_twin() == T2_node->lchild()) {
-			if (T2_node->rchild() == T2_node_end)
-				return true;
-		}
-		else if (T1_pendant->get_twin() == T2_node->rchild()) {
-			if (T2_node->lchild() == T2_node_end)
-				return true;
-		}
-		return false;
-	}
-	// T1_pendant is T1_node->lchild()
-	T1_pendant = T1_node->lchild();
-	if (T1_pendant->is_leaf()) {
-		T2_pendant = T2_node->lchild();
-		if (T2_pendant->is_leaf() && T1_pendant->get_twin() == T2_pendant) {
-			return chain_match(T1_pendant->get_sibling(),
-					T2_pendant->get_sibling(), T2_node_end);
-		}
-		T2_pendant = T2_node->rchild();
-		if (T2_pendant->is_leaf() && T1_pendant->get_twin() == T2_pendant) {
-			return chain_match(T1_pendant->get_sibling(),
-					T2_pendant->get_sibling(), T2_node_end);
-		}
-	}
-	// T1_pendant is T1_node->rchild()
-	if (T1_pendant->is_leaf()) {
-		T2_pendant = T2_node->lchild();
-		if (T2_pendant->is_leaf() && T1_pendant->get_twin() == T2_pendant) {
-			return chain_match(T1_pendant->get_sibling(),
-					T2_pendant->get_sibling(), T2_node_end);
-		}
-		T2_pendant = T2_node->rchild();
-		if (T2_pendant->is_leaf() && T1_pendant->get_twin() == T2_pendant) {
-			return chain_match(T1_pendant->get_sibling(),
-					T2_pendant->get_sibling(), T2_node_end);
-		}
-	}
-	return false;
-}
+
 
 int rSPR_total_distance(Node *T1, vector<Node *> &gene_trees) {
 	return rSPR_total_distance(T1, gene_trees, NULL);
@@ -6862,6 +6841,13 @@ int count_differing_bipartitions(Node *n) {
 }
 
 bool is_nonbranching(Forest *T1, Forest *T2, Node *T1_a, Node *T1_c, Node *T2_a, Node *T2_c) {
+
+    return rSprUtility::is_nonbranching_Inline(
+    CUT_ONE_B, CUT_TWO_B, CUT_TWO_B_ROOT, REVERSE_CUT_ONE_B, REVERSE_CUT_ONE_B_2,
+    T1, T2, T1_a, T1_c, T2_a, T2_c
+    );
+
+	/**
 	if ((T2_a->get_depth() < T2_c->get_depth()
 			&& T2_c->parent() != NULL)
 			|| T2_a->parent() == NULL) {
@@ -6946,112 +6932,29 @@ bool is_nonbranching(Forest *T1, Forest *T2, Node *T1_a, Node *T1_c, Node *T2_a,
 //			}
 		}
 		else if (REVERSE_CUT_ONE_B_2 && T2_c->parent() != NULL
-				&& chain_match(T1_s, T2_c->get_sibling(), T2_a))
+				&& rSprUtility::chain_match(T1_s, T2_c->get_sibling(), T2_a))
 			return true;
 	}
-	return false;
+	return false; */
 }
+
+
+
 
 void strip_whitespace(string &str) {
-	std::string::iterator end_pos = std::remove_if(str.begin(), str.end(), ::isspace);
-	str.erase(end_pos, str.end());
+	rSprUtility::strip_whitespace_Inline(str);
 }
 
+
+
 void strip_trailing_whitespace(string &str) {
-	size_t start_pos = str.find_first_not_of(whitespaces);
-	str.erase(0, start_pos);
-	size_t end_pos = str.find_last_not_of(whitespaces)+1;
-	str.erase(end_pos, str.size()-end_pos);
+	rSprUtility::strip_trailing_whitespace_Inline(whitespaces,str);
 }
 
 //randomizes T2 with count number of sprs. If T1 equals T2 at the beginning,
 //then the spr distance between T1 and T2 is equal to (or possibly less than) count
 //Assumes they are already synced, assumes there are valid sprs to be made
 void randomize_tree_with_spr(Forest* T1, Forest* T2, int count) {
-  for (int spr = 0; spr < count; spr++) {
-    vector<Node*> all_nodes = T2->get_component(0)->find_nodes_in_subtree();
-    Node* source = all_nodes[rand() % all_nodes.size()];
-    Node* target = all_nodes[rand() % all_nodes.size()];
-    bool target_in_subtree = false;
-    Node* first_leaf = target->find_leaves()[0];
-    vector<Node*> source_leaves = source->find_leaves();
-    for (int i = 0; i < source_leaves.size(); i++) {
-      if (source_leaves[i] == first_leaf) {
-	target_in_subtree = true;
-	break;
-      }
-    }
 
-    //Get random node
-    //if target is in source's subtree repick
-    //spr
-    while (source == target ||
-	   source->is_sibling_of(target) ||
-	   source->parent() == target || 
-	   target_in_subtree) {	   
-      source = all_nodes[rand() % all_nodes.size()];
-      target = all_nodes[rand() % all_nodes.size()];
-      //cout << "Trying: " << source->str_subtree() << " and "<<  target->str_subtree() << endl;
-      target_in_subtree = false;
-      Node* first_leaf = target->find_leaves()[0];
-      
-      int child_count = source->get_children().size();
-      if (child_count > 2) {
-	int rand_count = rand() % (child_count + 1);
-	if (rand_count == child_count || rand_count == 0){
-	  //cout << "moving whole tree" << endl;
-	}
-	else if (rand_count == 1) {
-	  source = source->get_children().front();
-	  //cout << "moving first child" << endl;
-	}
-	else {
-	  list<Node*> to_expand = list<Node*>();
-	  list<Node*>::iterator c = source->get_children().begin();
-	  for (int i = 0; i < rand_count; i++) {
-	    to_expand.push_back(*c);
-	    c++;
-	  }	
-	  source = source->expand_children_out(to_expand);
-	  //cout << "Moving part " << rand_count<< endl;
-	}
-      }
-      
-      vector<Node*> source_leaves = source->find_leaves();
-      for (int i = 0; i < source_leaves.size(); i++) {
-	if (source_leaves[i] == first_leaf) {
-	  //cout << "target in subtree" << endl;
-	  target_in_subtree = true;
-	  break;
-	}
-      }
-    } 
-
-    //cout << "Moving : " << source->str_subtree() << " to " << target->str_subtree() << endl;
-    
-    Node* parent = source->parent();      
-    if (parent != NULL) {
-      source->cut_parent();
-      if (parent->get_children().size() == 1) {
-	parent->contract(true);
-      }
-    }
-    else {
-      continue;
-    }
-    //regraft
-    if (target->parent() != NULL) {
-      target->parent()->add_child(source);
-    }
-    else {
-      Node* new_parent = target;//new Node();
-      Node* replace = new Node(*target);
-      new_parent->get_children().clear();
-      new_parent->add_child(replace);
-      new_parent->add_child(source);
-    }
-
-    //T1->print_components();
-    //T2->print_components();
-  }
+	rSprUtility::randomize_tree_with_spr_Inline(T1, T2, count);
 }
