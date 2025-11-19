@@ -38,7 +38,7 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 #include <vector>
 //#include <list>
 //#include <deque>
-#include "Node.h"
+#include "../DataStructures/Node.h"
 //#include "LCA.h"
 //#include <map>
 #include <limits>

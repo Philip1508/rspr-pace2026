@@ -11,12 +11,12 @@ PROFILEFLAGS=-pg
 OBJS=rspr spr_supertree fill_matrix
 all: $(OBJS)
 
-rspr: rspr.cpp *.h
-	$(CC) $(CFLAGS) -o rspr rspr.cpp
-spr_supertree: spr_supertree.cpp *.h
-	$(CC) $(CFLAGS) -o spr_supertree spr_supertree.cpp
-fill_matrix: fill_matrix.cpp
-	$(CC) $(CFLAGS) -o fill_matrix fill_matrix.cpp
+rspr: rSPR/rspr.cpp DataStructures/*.h
+	$(CC) $(CFLAGS) -o rspr rSPR/rspr.cpp
+spr_supertree: rSPR_supertree/spr_supertree.cpp DataStructures/*.h
+	$(CC) $(CFLAGS) -o spr_supertree rSPR_supertree/spr_supertree.cpp
+fill_matrix: Utility/fill_matrix.cpp
+	$(CC) $(CFLAGS) -o fill_matrix Utility/fill_matrix.cpp
 
 .PHONY: test
 .PHONY: debug
@@ -59,19 +59,19 @@ test: rspr fill_matrix
 	@echo SUCCESS: all tests passed
 
 debug:
-	$(CC) $(LFLAGS) $(DEBUGFLAGS) -o rspr rspr.cpp
-	$(CC) $(LFLAGS) $(DEBUGFLAGS) -o spr_supertree spr_supertree.cpp
+	$(CC) $(LFLAGS) $(DEBUGFLAGS) -o rspr rSPR/rspr.cpp
+	$(CC) $(LFLAGS) $(DEBUGFLAGS) -o spr_supertree rSPR_supertree/spr_supertree.cpp
 profile:
-	$(CC) $(LFLAGS) $(DEBUGFLAGS) $(PROFILEFLAGS) -o rspr rspr.cpp
-	$(CC) $(LFLAGS) $(DEBUGFLAGS) $(PROFILEFLAGS) -o spr_supertree spr_supertree.cpp
+	$(CC) $(LFLAGS) $(DEBUGFLAGS) $(PROFILEFLAGS) -o rspr rSPR/rspr.cpp
+	$(CC) $(LFLAGS) $(DEBUGFLAGS) $(PROFILEFLAGS) -o spr_supertree rSPR_supertree/spr_supertree.cpp
 w32:
 	$(CC) $(LFLAGS) $(CFLAGS) -o rspr rspr.cpp
 w64:
-	$(CC64) $(LFLAGS) $(C64FLAGS) -o rspr rspr.cpp
-	$(CC64) $(LFLAGS) $(C64FLAGS) -o spr_supertree spr_supertree.cpp
+	$(CC64) $(LFLAGS) $(C64FLAGS) -o rspr rSPR/rspr.cpp
+	$(CC64) $(LFLAGS) $(C64FLAGS) -o spr_supertree rSPR_supertree/spr_supertree.cpp
 omp:
-	$(CC) $(CFLAGS) $(OMPFLAGS) -o rspr-omp rspr.cpp
-	$(CC) $(CFLAGS) $(OMPFLAGS) -o spr_supertree-omp spr_supertree.cpp
+	$(CC) $(CFLAGS) $(OMPFLAGS) -o rspr-omp rSPR/rspr.cpp
+	$(CC) $(CFLAGS) $(OMPFLAGS) -o spr_supertree-omp rSPR_supertree/spr_supertree.cpp
 omp-debug:
-	$(CC) $(LFLAGS) $(DEBUGFLAGS) $(OMPFLAGS) -o rspr-omp rspr.cpp
-	$(CC) $(LFLAGS) $(DEBUGFLAGS) $(OMPFLAGS) -o spr_supertree-omp spr_supertree.cpp
+	$(CC) $(LFLAGS) $(DEBUGFLAGS) $(OMPFLAGS) -o rspr-omp rSPR/rspr.cpp
+	$(CC) $(LFLAGS) $(DEBUGFLAGS) $(OMPFLAGS) -o spr_supertree-omp rSPR_supertree/spr_supertree.cpp

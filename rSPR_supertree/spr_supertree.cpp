@@ -186,16 +186,16 @@ OTHER OPTIONS
 #include <algorithm>
 #include <list>
 #include <time.h>
-#include "rspr.h"
+#include "../rSPR/rspr.h"
 
-#include "Forest.h"
-#include "ClusterForest.h"
-#include "LCA.h"
-#include "ClusterInstance.h"
-#include "UndoMachine.h"
-#include "lgt.h"
-#include "sparse_counts.h"
-#include "node_glom.h"
+#include "../DataStructures/Forest.h"
+#include "../DataStructures/ClusterForest.h"
+#include "../UndecipheredComponents/LCA.h"
+#include "../DataStructures/ClusterInstance.h"
+#include "../DataStructures/UndoMachine.h"
+#include "../UndecipheredComponents/lgt.h"
+#include "../DataStructures/SparseCounts.h"
+#include "../Utility/node_glom.h"
 
 using namespace std;
 

@@ -53,12 +53,12 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 #include <set>
 #include <list>
 #include <algorithm>
-#include "Forest.h"
-#include "ClusterForest.h"
-#include "LCA.h"
-#include "ClusterInstance.h"
-#include "SiblingPair.h"
-#include "UndoMachine.h"
+#include "../DataStructures/Forest.h"
+#include "../DataStructures/ClusterForest.h"
+#include "../UndecipheredComponents/LCA.h"
+#include "../DataStructures/ClusterInstance.h"
+#include "../DataStructures/SiblingPair.h"
+#include "../DataStructures/UndoMachine.h"
 
 using namespace std;
 

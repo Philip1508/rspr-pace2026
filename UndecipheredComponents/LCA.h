@@ -32,11 +32,14 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 #include <cstdio>
 #include <string>
 #include <iostream>
-#include "Node.h"
+#include "../DataStructures/Node.h"
 #include <vector>
 #include <cmath>
 using namespace std;
 
+// This function is invoked in:
+// - spr_supertree.cpp
+// -
 int mylog2 (int val) {
 	if (val <= 0)
 		return -1;
@@ -54,6 +57,7 @@ int mylog2 (int val) {
     return ret;
 }
 
+// This class is instantiated within rspr.cpp, rspr.h and Forest.h
 class LCA {
 	private:
 	Node *tree;

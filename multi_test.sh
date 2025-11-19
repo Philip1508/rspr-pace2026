@@ -137,7 +137,7 @@ if [ "$binary_tests" = true ] ; then
        echo "\n\n////////////////////////////////////////////////////////"
        echo $i
        echo "////////////////////////////////////////////////////////\n\n"
-       time ./rspr  $binary $reverse $cluster< test_trees/$i
+       time ./rspr  $binary $reverse $cluster< Miscellaneous/test_trees/$i
    done
 else
    for i in ${tests[@]}
@@ -145,7 +145,7 @@ else
        echo "\n\n////////////////////////////////////////////////////////"
        echo $i
        echo "////////////////////////////////////////////////////////\n\n"
-       time ./rspr -multi_4_branch $cluster $reverse  < test_trees/$i    
+       time ./rspr -multi_4_branch $cluster $reverse  < Miscellaneous/test_trees/$i
    done
 fi
 echo "Finished"
