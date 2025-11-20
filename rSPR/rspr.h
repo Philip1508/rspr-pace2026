@@ -73,6 +73,10 @@ enum RELAXATION {STRICT, NEGATIVE_RELAXED, ALL_RELAXED};
 
 const string whitespaces = " \t\f\v\n\r";
 
+
+// ----------------------------------
+// FUNCTION PROTOTYPES
+// ----------------------------------
 // note: not using undo
 int rSPR_worse_3_mult_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, list<Node *> *sibling_pairs, Forest **F1, Forest **F2, bool save_forests);
 int rSPR_worse_3_mult_approx(Forest *T1, Forest *T2);
@@ -195,6 +199,12 @@ int rSPR_branch_and_bound_simple_clustering(Forest *T1, Forest *T2, bool verbose
 
 
 int rSPR_total_distance(Forest *T1, vector<Node *> &gene_trees);
+
+// ----------------------------------
+// ENF OF FUNCTION PROTOTYPES
+// ----------------------------------
+
+
 
 bool BB = false;
 bool APPROX_CHECK_COMPONENT = false;
@@ -6329,145 +6339,42 @@ int rSPR_total_approx_distance(Node *T1, vector<Node *> &gene_trees,
 }
 
 
+
+
+// --------------------------------------------------------------------
+// FROM HERE ON OUT; MOST IS MOVED TO rSprUtility.h!
+// --------------------------------------------------------------------
+
 string itos(int i) {
 	return rSprUtility::itos_Inline(i);
-	/*stringstream ss;
-	string a;
-	ss << i;
-	a = ss.str();
-	return a; */
 }
 
 Node *find_subtree_of_approx_distance_hlpr(Node *n, Forest *F1, Forest *F2, int target_size) {
 	return rSprUtility::find_subtree_of_approx_distance_hlpr_Inline(&find_subtree_of_approx_distance_hlpr,&rSPR_worse_3_approx, n, F1, F2, target_size);
-
-	/** Node *largest_child_subtree = NULL;
-	int lcs_size = 0;
-	list<Node *>::iterator c;
-	for(c = n->get_children().begin(); c != n->get_children().end(); c++) {
-		Forest f1 = Forest(F1);
-		Forest f2 = Forest(F2);
-		Node *subtree = f1.find_by_prenum((*c)->get_preorder_number());
-		f1.get_component(0)->disallow_siblings_subtree();
-		subtree->allow_siblings_subtree();
-//		if (subtree->lchild() != NULL)
-//			subtree->lchild()->allow_siblings_subtree();
-//		if (subtree->rchild() != NULL)
-//			subtree->rchild()->allow_siblings_subtree();
-
-		int cs_size = rSPR_worse_3_approx(subtree, &f1, &f2);
-		if (cs_size > lcs_size) {
-			largest_child_subtree = *c;
-			lcs_size = cs_size;
-		}
-	}
-	if (lcs_size <= 0)
-		return n;
-	else if (lcs_size < target_size)
-		return largest_child_subtree;
-	else
-		return find_subtree_of_approx_distance_hlpr(largest_child_subtree,
-				F1, F2, target_size); */
 }
 
 // Moved to rSprUtility.
 Node *find_subtree_of_approx_distance(Node *n, Forest *F1, Forest *F2, int target_size) {
 	return rSprUtility::find_subtree_of_approx_distance_Inline(
 		&find_subtree_of_approx_distance_hlpr, &rSPR_worse_3_approx, n, F1, F2, target_size);
-
-	/*Forest f1 = Forest(F1);
-		Forest f2 = Forest(F2);
-		Node *subtree = f1.find_by_prenum(n->get_preorder_number());
-		f1.get_component(0)->disallow_siblings_subtree();
-		subtree->allow_siblings_subtree();
-//		if (subtree->lchild() != NULL)
-//			subtree->lchild()->allow_siblings_subtree();
-//		if (subtree->rchild() != NULL)
-//			subtree->rchild()->allow_siblings_subtree();
-		int size = rSPR_worse_3_approx(subtree, &f1, &f2);
-		if (size > target_size)
-			return find_subtree_of_approx_distance_hlpr(n, F1, F2, target_size);
-		else 
-			return n; */
 }
 
 
 // Moved to rSprUtility!
 Node *find_best_root(Node *T1, Node *T2, double *best_root_b_acc) {
 	return rSprUtility::find_best_root_Inline(&find_best_root_hlpr, T1, T2, best_root_b_acc);
-	/*
-	Forest F1 = Forest(T1);
-	Forest F2 = Forest(T2);
-	Node *t1 = F1.get_component(0);
-	Node *t2 = F2.get_component(0);
-	//F1->preorder_number();
-	int lchild_pre = t1->lchild()->get_preorder_number();
-	int rchild_pre = t1->rchild()->get_preorder_number();
-	if (!sync_twins(&F1, &F2)) {
-		return NULL;
-	}
-//	if (t1->lchild()->get_preorder_number() != lchild_pre ||
-//			t1->rchild()->get_preorder_number() != rchild_pre)
-//		return NULL;
-	if (F2.get_component(0)->get_children().size() > 2)
-		F2.get_component(0)->fixroot();
-	// TODO: maybe stop if F2 is too small?
-	int pre_separator = t1->lchild()->get_preorder_number();
-	int group_1_total;
-	int group_2_total;
-	if (t1->rchild()->get_preorder_number() > pre_separator) {
-		pre_separator = t1->rchild()->get_preorder_number();
-		group_1_total = t1->lchild()->find_leaves().size();
-		group_2_total = t1->rchild()->find_leaves().size();
-	}
-	else {
-		group_1_total = t1->rchild()->find_leaves().size();
-		group_2_total = t1->lchild()->find_leaves().size();
-	}
-//	cout << "g1_total: " << group_1_total << endl;
-//	cout << "g2_total: " << group_2_total << endl;
-	Node *best_root = t2->lchild();
-	find_best_root_hlpr(t2, pre_separator, group_1_total, group_2_total,
-			&best_root, best_root_b_acc);
-//	cout << "t1: " << t1->str_subtree() << endl;
-//	cout << "t2: " << t2->str_subtree() << endl;
-//	cout << "best_root: " << best_root->str_subtree() << endl;
-	best_root = T2->find_by_prenum(best_root->get_preorder_number());
-//	cout << "T1: " << T1->str_subtree() << endl;
-//	cout << "best_root: " << best_root->str_subtree() << endl;
-//	T2->reroot(best_root);
-//	cout << "T2: " << T2->str_subtree() << endl;
-	return best_root;*/
 }
 
 
 
 Node *find_best_root(Node *T1, Node *T2) {
-
 	return rSprUtility::find_best_root_Inline(&find_best_root, T1,T2);
-	/** double best_root_b_acc = 0;
-	Forest f1 = Forest(T1);
-	Forest f2 = Forest(T2);
-	sync_twins(&f1, &f2);
-	Node *new_root =
-		find_best_root(f1.get_component(0), f2.get_component(0), &best_root_b_acc);
-	if (new_root != NULL)
-		new_root = T2->find_by_prenum(new_root->get_preorder_number());
-	return new_root; */
 }
 
 
 // Moved to rSprUtlity
 double find_best_root_acc(Node *T1, Node *T2) {
-
 	return rSprUtility::find_best_root_acc_Inline(&find_best_root, T1, T2);
-	/**
-	double best_root_b_acc = -1;
-	Forest f1 = Forest(T1);
-	Forest f2 = Forest(T2);
-	sync_twins(&f1, &f2);
-	find_best_root(f1.get_component(0), f2.get_component(0), &best_root_b_acc);
-	return best_root_b_acc; */
 }
 
 
@@ -6477,15 +6384,6 @@ void find_best_root_hlpr(Node *T2, int pre_separator, int group_1_total,
 	rSprUtility::find_best_root_hlpr_Inline(
 		&find_best_root_hlpr,
 		T2,pre_separator,group_1_total, group_2_total, best_root, best_root_b_acc);
-	/** list<Node*>::iterator c;
-	int group_1_descendants = 0;
-	int group_2_descendants = 0;
-	int num_ties = 2;
-	for(c = T2->get_children().begin(); c != T2->get_children().end(); c++) {
-		find_best_root_hlpr(*c, pre_separator, group_1_total,
-				group_2_total, best_root, best_root_b_acc,
-				&group_1_descendants, &group_2_descendants, &num_ties);
-	} */
 }
 
 
@@ -6524,68 +6422,6 @@ void find_best_root_hlpr(Node *n, int pre_separator, int group_1_total,
 	n, pre_separator, group_1_total,
 	group_2_total,best_root, best_root_b_acc,
 	p_group_1_descendants, p_group_2_descendants, num_ties);
-
-	/** list<Node*>::iterator c;
-	int group_1_descendants = 0;
-	int group_2_descendants = 0;
-//	vector<pair<int,int> > children_splits = vector<pair<int,int>>();
-	for(c = n->get_children().begin(); c != n->get_children().end(); c++) {
-//		int g_1_desc = 0;
-//		int g_2_desc = 0;
-		find_best_root_hlpr(*c, pre_separator, group_1_total,
-				group_2_total, best_root, best_root_b_acc,
-				&group_1_descendants, &group_2_descendants, num_ties);
-//				&g_1_desc, &g_2_desc, num_ties);
-//		children_splits.push_back(make_pair(g_1_desc,g_2_desc));
-//		group_1_descendants += g_1_desc;
-//		group_2_descendants += g_2_desc;
-	}
-	if (n->is_leaf()) {
-		int pre = n->get_twin()->get_preorder_number();
-		if (pre < pre_separator)
-			group_1_descendants++;
-		else
-			group_2_descendants++;
-	}
-//	else if (n->get_children.size() > 2) {
-//		if (group_1_descendants / (double) group_1_total >= group_2_descendants / (double) group_2_total) {
-//			sort(children_splits.begin(),children_splits.end(), g_1_comp(group_1_total, group_2_total, true));
-//		}
-//	}
-	// balanced accuracy
-	// don't bother averaging since we only directly compare them
-	double tpos = group_1_descendants;
-	double fpos = group_2_descendants;
-	double fneg = (group_1_total - group_1_descendants);
-	double tneg = (group_2_total - group_2_descendants);
-	// balanced accuracy for this bipartition
-	double b_acc =  tpos / (tpos + fneg)
-			+ tneg / (tneg + fpos);
-	// balanced accuracy for the opposite bipartition
-	double b_acc_opp = fpos / (fpos + tneg)
-			+ fneg / (fneg + tpos);
-	// use the better bipartition
-//	cout << "n: " << n->str_subtree() << endl;
-//	cout << "b_acc: " << b_acc << endl;
-//	cout << "b_acc_opp: " << b_acc_opp << endl;
-//	cout << n->str_subtree() << endl;
-//	cout << b_acc << "\t" << b_acc_opp << endl;
-	if (b_acc_opp > b_acc)
-		b_acc = b_acc_opp;
-	if (b_acc > *best_root_b_acc) {
-		*best_root = n;
-		*best_root_b_acc = b_acc;
-		*num_ties = 2;
-	}
-	else if(b_acc == *best_root_b_acc) {
-		int r = rand();
-		if (r < RAND_MAX/ *num_ties) {
-			*best_root = n;
-			*best_root_b_acc = b_acc;
-		}
-	}
-	*p_group_1_descendants += group_1_descendants;
-	*p_group_2_descendants += group_2_descendants; */
 }
 
 
@@ -6593,58 +6429,11 @@ void find_best_root_hlpr(Node *n, int pre_separator, int group_1_total,
 //P Moved to rSprUtility
 Node *find_random_root(Node *T1, Node *T2) {
 	return rSprUtility::find_random_root_Inline(T1,T2);
-	//P vector<Node *> rroots = T2->find_descendants();
-	//P int r = rand() % rroots.size();
-	//P return rroots[r];
 }
 
 //P Moved to rSprUtility!
 Node *find_best_root_rspr(Node *T1, Node *T2) {
 	return rSprUtility::find_best_root_rspr_Inline(&rSPR_branch_and_bound_simple_clustering, T1, T2);
-
-	/** Node *t1 = new Node(*T1);
-//	t1->preorder_number();
-	Node *t2  = new Node(*T2);
-	int new_prenum = T2->lchild()->get_preorder_number();
-	vector<Node *> roots = t2->find_descendants();
-	vector<int> root_prenums = vector<int>(roots.size());
-	for(int i = 0; i < roots.size(); i++) {
-		root_prenums[i] = roots[i]->get_preorder_number();
-	}
-	int best_distance = INT_MAX;
-	int num_ties = 2;
-//	cout << endl;
-//	cout << "find_best_root_rspr" << endl;
-//	cout << "T1: " << T1->str_subtree() << endl;
-//	cout << "T2: " << T2->str_subtree() << endl;
-//	cout << roots.size() << " Rootings" << endl;
-	for(int i = 0; i < roots.size(); i++) {
-		Node *root = roots[i];
-		t2->reroot(root);
-//		cout << "\t" << t2->str_subtree() << endl;
-		t2->set_depth(0);
-		t2->fix_depths();
-		t2->preorder_number();
-		int distance = rSPR_branch_and_bound_simple_clustering(t1, t2);
-//		int distance = rf_distance(t1, t2);
-		if (distance < best_distance) {
-			best_distance = distance;
-			new_prenum = root_prenums[i];
-			num_ties = 2;
-		}
-		else if (distance == best_distance) {
-			int r = rand();
-			if (r < RAND_MAX / num_ties) {
-				best_distance = distance;
-				new_prenum = root_prenums[i];
-			}
-			num_ties++;
-		}
-	}
-	Node *new_root = T2->find_by_prenum(new_prenum);
-	t1->delete_tree();
-	t2->delete_tree();
-	return new_root; */
 }
 
 
@@ -6825,7 +6614,6 @@ void modify_bipartition_support(Node *n, Forest *F1, Forest *F2,
 // Moved to rSprUtility!
 int rf_distance(Node *T1, Node *T2) {
 	return rSprUtility::rf_distance(&count_differing_bipartitions, T1,T2);
-
 }
 
 
