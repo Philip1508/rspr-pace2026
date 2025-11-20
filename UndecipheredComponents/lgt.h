@@ -56,7 +56,6 @@ bool LGT_MAINTAIN_LIST = false;
 
 using namespace std;
 
-
 class transfer {
 	public:
 	int source_pre;

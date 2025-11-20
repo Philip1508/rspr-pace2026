@@ -354,10 +354,10 @@ int rSPR_worse_3_mult_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singleto
   int num_cut = 0;
   Node* previous_group = NULL;
   while(!singletons->empty() || !sibling_groups->empty()) {
-	  
+
     // Case 1 - Remove singletons
     while(!singletons->empty()) {
-      
+
       Node *T2_a = singletons->back();
       singletons->pop_back();
       #ifdef DEBUG_APPROX
@@ -375,7 +375,7 @@ int rSPR_worse_3_mult_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singleto
       if (T1_a_p == NULL)
 	continue;
 
-      
+
       if (T2_a == T2->get_component(0)){
 	if (!T1->contains_rho()) {
 	  T1->add_rho();
@@ -383,12 +383,12 @@ int rSPR_worse_3_mult_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singleto
 	  num_cut++;
 	}
       }
-	
+
 	//continue;
 
       bool is_sibling_group = T1_a_p->is_sibling_group();
       // cut the edge above T1_a
-      T1_a->cut_parent();      
+      T1_a->cut_parent();
       if (!T1_a->is_leaf()) {
 	T1_a_p->decrement_non_leaf_children();//although would this ever be a non leaf?
       }
@@ -398,7 +398,7 @@ int rSPR_worse_3_mult_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singleto
       if (T1_a_p->get_children().size() == 1) {
 	if (is_sibling_group) {
 	  sibling_groups->remove(T1_a_p);
-          #ifdef DEBUG_APPROX	  
+          #ifdef DEBUG_APPROX
 	  cout << "Removed ";
 	  for (list<Node*>::iterator i = T1_a_p->get_children().begin(); i != T1_a_p->get_children().end(); i++) {
 	    cout << (*i)->str();
@@ -425,7 +425,7 @@ int rSPR_worse_3_mult_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singleto
       }
     }//!singletons->empty()
 
-    
+
     if(!sibling_groups->empty()) {
       //Get the first group that has identical sibling groups, otherwise default to the group on the back
       list<Node*>::iterator i = sibling_groups->end();
@@ -440,7 +440,7 @@ int rSPR_worse_3_mult_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singleto
 	  break;
 	}
       }
-      
+
       #ifdef DEBUG_APPROX
       cout << "F2: ";
       T2->print_components();
@@ -449,13 +449,13 @@ int rSPR_worse_3_mult_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singleto
       T1->print_components();
       cout << endl;
       #endif
-      
-      /* 
+
+      /*
 	 Case where a subset of the group have the same parent both in T1 and T2
 	 Step 5 in paper
       */
       // Case 2 - Contract identical sibling pair
-      if (identical_sibling_groups.size() > 0) {	  		
+      if (identical_sibling_groups.size() > 0) {
 	list<list<Node *>>::iterator i;
 	for (i = identical_sibling_groups.begin(); i != identical_sibling_groups.end(); i++) {
 	  list<Node *> T2_group = (*i);
@@ -468,9 +468,9 @@ int rSPR_worse_3_mult_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singleto
 	  cout << "Contracting T2... " << endl;
 	  #endif
 	  Node *T2_group_new = T2_p->contract_sibling_group(&T2_group);
-	  
+
 	  T1_group_new->set_twin(T2_group_new);
-	  T2_group_new->set_twin(T1_group_new);			
+	  T2_group_new->set_twin(T1_group_new);
 
 	  // check if T2_p is a singleton after the contraction
 	  if (T2_p->is_singleton() && T2_p != T2->get_component(0)) {
@@ -486,7 +486,7 @@ int rSPR_worse_3_mult_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singleto
 	  }
 	  if (!T1_sibling_group->is_sibling_group()) {
 	    sibling_groups->remove(T1_sibling_group);
-	  }	  
+	  }
 	}
       }
 
@@ -509,10 +509,10 @@ int rSPR_worse_3_mult_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singleto
 	vector<int> descendant_count = T1_sibling_group->find_pseudo_lca_descendant_count(T2->max_preorder + 1);
 	Node* arbitrary_lca = T1_sibling_group->find_arbitrary_lca(T2->components, descendant_count);
 	vector<Node *> deepest_siblings;
-	
+
 	//All siblings are in different components, ie no path between them
 	//Get depth of siblings from root of each component
-	if (arbitrary_lca == NULL) {	
+	if (arbitrary_lca == NULL) {
 	  vector<vector<Node *>> siblings_by_depth = vector<vector<Node *>>(10);
 	  for (int i = 0; i != T2->components.size(); i++) {
 	    T2->components[i]->get_deepest_siblings(descendant_count, siblings_by_depth);
@@ -524,7 +524,7 @@ int rSPR_worse_3_mult_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singleto
 	  vector<vector<Node *>> siblings_by_depth = arbitrary_lca->get_deepest_siblings(descendant_count);
 	  deepest_siblings = contract_deepest_siblings(siblings_by_depth);
 	}
-      
+
 	// Should assert here
 	if (deepest_siblings.size() < 2) { cout << "improper length" << endl; }
 
@@ -534,18 +534,18 @@ int rSPR_worse_3_mult_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singleto
 	#ifdef DEBUG_APPROX
 	cout << "a1: " << T2_a1->str() << " a2: " << T2_a2->str() << endl;
 	#endif
-	
+
 	bool cut_a1   = false;
 	bool cut_a1_p = false;
 	bool cut_a2   = false;
 	bool cut_a2_p = false;
-      
+
 	if (T1_sibling_group->get_children().size() == 2) {
 	  /*
 	    7.1 case
 	    Cut a1, pa1, a2 in F2, add 3 to num_cut
-	    Consider adding 3 regardless if we actually cut 3, 
-	  */	
+	    Consider adding 3 regardless if we actually cut 3,
+	  */
 	  cut_a1   = true;
 	  cut_a1_p = true;
 	  cut_a2   = true;
@@ -567,11 +567,11 @@ int rSPR_worse_3_mult_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singleto
 	    #endif
 	  }
 	} // size == 2
-      
+
 	else if (T1_sibling_group->get_children().size() > 2) {
 	  /*
 	    7.3 case
-	    If a2's parent's only sibling is part of the sibling group, 
+	    If a2's parent's only sibling is part of the sibling group,
 	    and a1's parent is a root or has a sibling that is not part of the sibling group
 	    then cut a2 and a2_p otherwise a1 and a1_p
 	  */
@@ -580,13 +580,13 @@ int rSPR_worse_3_mult_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singleto
 	    bool x_2 = false;
 	    bool a2_p_one_sibling = (T2_a2_p != NULL) &&
 	      (T2_a2_p->parent() != NULL) &&
-	      (T2_a2_p->parent()->get_children().size() == 2);	  
+	      (T2_a2_p->parent()->get_children().size() == 2);
 	    if (a2_p_one_sibling) {
 	      list<Node *> group = T1_sibling_group->get_children();
 	      //get the other one
 	      Node *a2_p_sibling = T2_a2_p->parent()->get_children().front() == T2_a2_p ?
 		T2_a2_p->parent()->get_children().back() :
-		T2_a2_p->parent()->get_children().front();	
+		T2_a2_p->parent()->get_children().front();
 	      //check if it is part of sibling group
 	      bool a2_p_sibling_in_group = descendant_count[a2_p_sibling->get_preorder_number()] == -1;
 	      if (a2_p_sibling_in_group) {
@@ -613,7 +613,7 @@ int rSPR_worse_3_mult_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singleto
 	    #endif
 	    //num_cut += 2;
 	    if (x_2){
-	    
+
 	      cut_a2   = true;
 	      cut_a2_p = true;
 	    }
@@ -664,7 +664,7 @@ int rSPR_worse_3_mult_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singleto
 	    //Check for singletons
 	    if (T2_a1->is_singleton()) // wont ever be C0?
 	      singletons->push_front(T2_a1);
-	    
+
 
 	    if (cut_a1_p) {
 	      if (T2_a1_p->parent() != NULL) {
@@ -685,7 +685,7 @@ int rSPR_worse_3_mult_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singleto
 		//Just cut 1 of two children of a1 parent
 		if (T2_a1_gp->get_children().size() == 1) {
 		  if (T2_a1_gp->parent() == NULL) {
-		    T2_a1_gp->contract(true);		    
+		    T2_a1_gp->contract(true);
 		  }
 		  else {
 		    Node* T2_b1_p = T2_a1_gp->get_children().front();
@@ -699,8 +699,8 @@ int rSPR_worse_3_mult_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singleto
 		}
 		//Check for singletons
 		if (T2_a1_p->is_singleton() && T2_a1_p != T2->get_component(0)) {
-		  singletons->push_front(T2_a1_p);	      
-		}	
+		  singletons->push_front(T2_a1_p);
+		}
 	      }
 	    }
 	  }//T2_a1_p() != NULL
@@ -734,7 +734,7 @@ int rSPR_worse_3_mult_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singleto
 	    //Check for singletons
 	    if (T2_a2->is_singleton())
 	      singletons->push_front(T2_a2);
-	    
+
 	  }
 	}
 	if (cut_a2_p) {
@@ -762,12 +762,12 @@ int rSPR_worse_3_mult_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singleto
 	    }
 	    //Check for singletons
 	    if (T2_a2_p->is_singleton()) {
-	      singletons->push_front(T2_a2_p);	      
+	      singletons->push_front(T2_a2_p);
 	    }
 
-	  }	 	 
+	  }
 	}
-      
+
 
       }//else
       //delete identical_sibling_groups;
@@ -6600,47 +6600,19 @@ Node *find_best_root_rspr(Node *T1, Node *T2) {
 	return new_root;
 }
 
+
+
 // assume already sync_twins and preorder numbered
+// Moved to rSprUtility!
 bool contains_bipartition(Node *n, int pre_start, int pre_end,
 		int group_1_total, int group_2_total, int *p_group_1_descendants,
 		int *p_group_2_descendants) {
-	list<Node*>::iterator c;
-	int group_1_descendants = 0;
-	int group_2_descendants = 0;
-	bool found = false;
-	bool proper_split = true;
-	for(c = n->get_children().begin(); c != n->get_children().end(); c++) {
-		int c_group_1_descendants = 0;
-		int c_group_2_descendants = 0;
-		found = contains_bipartition(*c, pre_start, pre_end, group_1_total,
-				group_2_total, &c_group_1_descendants, &c_group_2_descendants);
-		if (found)
-			return true;
-		group_1_descendants += c_group_1_descendants;
-		group_2_descendants += c_group_2_descendants;
-		if (c_group_1_descendants > 0 && c_group_2_descendants > 0)
-			proper_split = false;
-	}
-
-	if (n->is_leaf()) {
-		int pre = n->get_twin()->get_preorder_number();
-		if (pre >= pre_start && pre <= pre_end)
-			group_1_descendants++;
-		else
-			group_2_descendants++;
-	}
-	else if (proper_split) {
-		if (group_1_descendants == group_1_total
-				|| group_2_descendants == group_2_total)
-			return true;
-	}
-	if (p_group_1_descendants != NULL)
-		*p_group_1_descendants += group_1_descendants;
-	if (p_group_2_descendants != NULL)
-		*p_group_2_descendants += group_2_descendants;
-	return false;
+	return rSprUtility::contains_bipartition_Inline(&contains_bipartition,
+		n, pre_start, pre_end, group_1_total, group_2_total, p_group_1_descendants, p_group_2_descendants);
 }
 
+
+// ToDo; Apply Inline Calculus
 // root the tree based on an outgroup
 // returns false if the outgroup is not found or not a clade
 bool outgroup_root(Node *T, set<string, StringCompare> outgroup) {
@@ -6671,6 +6643,8 @@ bool outgroup_root(Node *T, set<string, StringCompare> outgroup) {
 		return false;
 }
 
+
+// IS NOT TRIVIALLY MOVED
 bool outgroup_root(Node *n, vector<int> &num_in, vector<int> &num_out) {
 	list<Node *>::iterator c;
 	int pre = n->get_preorder_number();
@@ -6690,6 +6664,13 @@ bool outgroup_root(Node *n, vector<int> &num_in, vector<int> &num_out) {
 		return false;
 }
 
+
+
+
+
+
+
+// IS NOT TRIVIALLY MOVED
 bool outgroup_reroot(Node *n, vector<int> &num_in, vector<int> &num_out) {
 	Node *T = n->find_root();
 	if (num_in[n->get_preorder_number()] == 0) {
@@ -6720,33 +6701,14 @@ bool outgroup_reroot(Node *n, vector<int> &num_in, vector<int> &num_out) {
 	return true;
 }
 
+// Moved to rSpr Utility!
 void count_in_out(Node *n, vector<int> &num_in, vector<int> &num_out,
 		set<string, StringCompare> &outgroup) {
-	list<Node *>::iterator c;
-	int pre = n->get_preorder_number();
-	if (num_in.size() <= pre)
-		num_in.resize(pre + 1, 0);
-	if (num_out.size() <= pre)
-		num_out.resize(pre + 1, 0);
-	if (n->is_leaf()) {
-		if (outgroup.find(n->get_name()) != outgroup.end()) {
-				num_out[pre] = 1;
-				num_in[pre] = 0;
-		}
-		else {
-				num_out[pre] = 0;
-				num_in[pre] = 1;
-		}
-	}
-	else {
-		for(c = n->get_children().begin(); c != n->get_children().end(); c++) {
-			count_in_out(*c, num_in, num_out, outgroup);
-			num_in[pre] += num_in[(*c)->get_preorder_number()];
-			num_out[pre] += num_out[(*c)->get_preorder_number()];
-		}
-	}
+	rSprUtility::count_in_out_Inline(&count_in_out,n, num_in, num_out, outgroup);
 }
 
+
+// STUCK DUE TO ENUMERATION!
 void modify_bipartition_support(Node *T1, Node *T2, enum RELAXATION relaxed) {
 	Forest F1 = Forest(T1);
 	Forest F2 = Forest(T2);
@@ -6760,6 +6722,7 @@ void modify_bipartition_support(Node *T1, Node *T2, enum RELAXATION relaxed) {
 	delete F1_descendant_counts;
 }
 
+// STUCK DUE TO ENUMERATION!
 void modify_bipartition_support(Node *n, Forest *F1, Forest *F2,
 		Node *T1, Node *T2, vector<int> *F1_descendant_counts, enum RELAXATION relaxed) {
 	if (n->is_leaf())
@@ -6812,145 +6775,42 @@ void modify_bipartition_support(Node *n, Forest *F1, Forest *F2,
 }
 
 int rf_distance(Node *T1, Node *T2) {
-	Forest F1 = Forest(T1);
-	Forest F2 = Forest(T2);
-	if (!sync_twins(&F1, &F2))
-		return 0;
-	if (F1.get_component(0)->is_leaf())
-		return 0;
-	sync_interior_twins(&F1, &F2);
-	int rf_d = 0;
-	rf_d += count_differing_bipartitions(F1.get_component(0));
-	rf_d += count_differing_bipartitions(F2.get_component(0));
-	return rf_d;
+	return rSprUtility::rf_distance(&count_differing_bipartitions, T1,T2);
+
 }
 
+
+// Moved TO rSprUtility!
 int count_differing_bipartitions(Node *n) {
-	//cout << "Start: " << n->str_subtree() << endl;
-	int count = 0;
-	list<Node *>::iterator c;
-	for(c = n->get_children().begin(); c != n->get_children().end(); c++) {
-		count += count_differing_bipartitions(*c);
-	}
-	if (n->get_twin() == NULL ||
-//			n->get_depth() > n->get_twin()->get_twin()->get_depth())
-			n != n->get_twin()->get_twin()) {
-		count++;
-			}
-	return count;
+	return rSprUtility::count_differing_bipartitions_Inline(&count_differing_bipartitions, n);
 }
 
-bool is_nonbranching(Forest *T1, Forest *T2, Node *T1_a, Node *T1_c, Node *T2_a, Node *T2_c) {
 
+
+
+// MOVED TO rSprUtility!
+bool is_nonbranching(Forest *T1, Forest *T2, Node *T1_a, Node *T1_c, Node *T2_a, Node *T2_c) {
     return rSprUtility::is_nonbranching_Inline(
     CUT_ONE_B, CUT_TWO_B, CUT_TWO_B_ROOT, REVERSE_CUT_ONE_B, REVERSE_CUT_ONE_B_2,
     T1, T2, T1_a, T1_c, T2_a, T2_c
     );
 
-	/**
-	if ((T2_a->get_depth() < T2_c->get_depth()
-			&& T2_c->parent() != NULL)
-			|| T2_a->parent() == NULL) {
-		swap(&T1_a, &T1_c);
-		swap(&T2_a, &T2_c);
-	}
-	else if (T2_a->get_depth() == T2_c->get_depth()) {
-		if (T2_a->parent() && T2_c->parent() &&
-				(T2_a->parent()->get_depth() <
-				T2_c->parent()->get_depth()
-				//|| (T2_c->parent()->parent()
-				//&& T2_c->parent()->parent() == T2_a->parent())
-				)) {
-		swap(&T1_a, &T1_c);
-		swap(&T2_a, &T2_c);
-		}
-	}
-	int num_protected = T2_a->is_protected() + T2_c->is_protected();
-	if (T2_a->parent()->get_children().size() == 2)
-		num_protected += T2_a->get_sibling()->is_protected();
-	if (num_protected >= 2)
-		return true;
-	if (CUT_ONE_B) {
-		if (T2_a->parent()->parent() == T2_c->parent()
-			&& T2_c->parent() != NULL
-			&& T2_a->parent()->get_children().size() <= 2)
-			return true;
-	}
-	if (CUT_TWO_B && T1_a->parent()->parent() != NULL) {
-		Node *T1_s = T1_a->parent()->get_sibling();
-		if (T1_s->is_leaf()) {
-			Node *T2_l = T2_a->parent()->parent();
-			if (T2_l != NULL && T2_l->get_children().size() <= 2) {
-				if (T2_c->parent() != NULL && T2_c->parent()->parent() == T2_l
-						&& ((T2_a->parent()->get_children().size() <= 2
-						&& T2_c->parent()->get_children().size() <= 2)
-						|| T1_s->get_twin()->is_protected())){
-					if (T2_l->get_sibling() == T1_s->get_twin()) {
-						return true;
-					}
-					else if (CUT_TWO_B_ROOT && T2_l->parent() == NULL &&
-							(T2->contains_rho() ||
-							 T2->get_component(0) != T2_l)) {
-						return true;
-					}
-				}
-				else if ((T2_l = T2_l->parent()) != NULL
-						&& T2_c->parent() == T2_l
-						&& ((T2_a->parent()->get_children().size() <= 2
-						&& T2_a->parent()->parent()->get_children().size() <= 2
-						&& T2_l->get_children().size() <= 2)
-						|| T1_s->get_twin()->is_protected())){
-					if (T2_l->get_sibling() == T1_s->get_twin()) {
-						return true;
-					}
-					else if (CUT_TWO_B_ROOT && T2_l->parent() == NULL &&
-							(T2->contains_rho() ||
-							 T2->get_component(0) != T2_l)) {
-						return true;
-					}
-				}
-			}
-		}
-	}
-	if (REVERSE_CUT_ONE_B && T1_a->parent()->parent() != NULL) {
-		Node *T1_s = T1_a->parent()->get_sibling();
-		Node *T2_s = T1_s->get_twin();
-		if (T1_s->is_leaf()) {
-			if (T2_s->parent() == T2_a->parent()) {
-				return true;
-			}
-			else if (T2_s->parent() == T2_c->parent()
-					&& T2_c->parent()->get_children().size() <= 2) {
-				return true;
-			}
-//			else if (REVERSE_CUT_ONE_B_3
-//							&& T2_s->is_protected()
-//							&& T2_s->parent() != NULL
-//							&& T2_s->parent()->parent() == T2_a->parent()
-//							&& T2_s->parent()->get_children().size() <= 2) {
-//				return true;
-//			}
-		}
-		else if (REVERSE_CUT_ONE_B_2 && T2_c->parent() != NULL
-				&& rSprUtility::chain_match(T1_s, T2_c->get_sibling(), T2_a))
-			return true;
-	}
-	return false; */
 }
 
 
 
-
+// MOVED TO rSprUtility!
 void strip_whitespace(string &str) {
 	rSprUtility::strip_whitespace_Inline(str);
 }
 
 
-
+// MOVED TO rSprUtility!
 void strip_trailing_whitespace(string &str) {
 	rSprUtility::strip_trailing_whitespace_Inline(whitespaces,str);
 }
 
+// MOVED TO rSprUtility!
 //randomizes T2 with count number of sprs. If T1 equals T2 at the beginning,
 //then the spr distance between T1 and T2 is equal to (or possibly less than) count
 //Assumes they are already synced, assumes there are valid sprs to be made
