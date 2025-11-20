@@ -38,6 +38,202 @@
 namespace rSprAlgorithm3Approx {
 
 
+
+/*	__attribute__((always_inline)) inline int rSPR_3_approx_hlpr_Inline(
+		bool &APPROX_CHECK_COMPONENT,
+		Forest *T1, Forest *T2, list<Node *> *singletons,
+list<Node *> *sibling_pairs) {
+	int num_cut = 0;
+	while(!singletons->empty() || !sibling_pairs->empty()) {
+// Case 1 - Remove singletons
+while(!singletons->empty()) {
+
+
+	Node *T2_a = singletons->back();
+	singletons->pop_back();
+  // find twin in T1
+	Node *T1_a = T2_a->get_twin();
+	// if this is in the first component of T_2 then
+	// it is not really a singleton.
+	if (T2_a == T2->get_component(0))
+		continue;
+
+	Node *T1_a_parent = T1_a->parent();
+	if (T1_a_parent == NULL)
+		continue;
+	bool potential_new_sibling_pair = T1_a_parent->is_sibling_pair();
+	// cut the edge above T1_a
+	T1_a->cut_parent();
+	T1->add_component(T1_a);
+	if (T1_a->get_sibling_pair_status() > 0)
+		T1_a->clear_sibling_pair(sibling_pairs);
+	//delete(T1_a);
+
+	Node *node = T1_a_parent->contract();
+	if (node != NULL && potential_new_sibling_pair && node->is_sibling_pair()){
+		node->rchild()->add_to_front_sibling_pairs(sibling_pairs, 2);
+		node->lchild()->add_to_front_sibling_pairs(sibling_pairs, 1);
+	}
+
+}
+if(!sibling_pairs->empty()) {
+	Node *T1_a = sibling_pairs->back();
+	sibling_pairs->pop_back();
+	Node *T1_c = sibling_pairs->back();
+	sibling_pairs->pop_back();
+	T1_a->clear_sibling_pair_status();
+	T1_c->clear_sibling_pair_status();
+	if (T1_a->parent() == NULL || T1_a->parent() != T1_c->parent()) {
+		continue;
+	}
+	Node *T1_ac = T1_a->parent();
+	// lookup in T2 and determine the case
+	Node *T2_a = T1_a->get_twin();
+	Node *T2_c = T1_c->get_twin();
+
+	// Case 2 - Contract identical sibling pair
+	if (T2_a->parent() != NULL && T2_a->parent() == T2_c->parent()) {
+		Node *T2_ac = T2_a->parent();
+		T1_ac->contract_sibling_pair();
+		T2_ac->contract_sibling_pair();
+		T1_ac->set_twin(T2_ac);
+		T2_ac->set_twin(T1_ac);
+		T1->add_deleted_node(T1_a);
+		T1->add_deleted_node(T1_c);
+		T2->add_deleted_node(T2_a);
+		T2->add_deleted_node(T2_c);
+
+		// check if T2_ac is a singleton
+		if (T2_ac->is_singleton() && !T1_ac->is_singleton() && T2_ac != T2->get_component(0))
+			singletons->push_back(T2_ac);
+		// check if T1_ac is part of a sibling pair
+		if (T1_ac->parent() != NULL && T1_ac->parent()->is_sibling_pair()) {
+			T1_ac->parent()->lchild()->add_to_sibling_pairs(sibling_pairs, 1);
+			T1_ac->parent()->rchild()->add_to_sibling_pairs(sibling_pairs, 2);
+		}
+	}
+	// Case 3
+	else {
+
+		//  ensure T2_a is below T2_c
+		if (T2_a->get_depth() < T2_c->get_depth()) {
+			swap(&T1_a, &T1_c);
+			swap(&T2_a, &T2_c);
+		}
+		else if (T2_a->get_depth() == T2_c->get_depth()) {
+			if (T2_a->parent() && T2_c->parent() &&
+					(T2_a->parent()->get_depth() <
+					T2_c->parent()->get_depth())) {
+			swap(&T1_a, &T1_c);
+			swap(&T2_a, &T2_c);
+			}
+		}
+
+		// get T2_b
+		Node *T2_ab = T2_a->parent();
+		Node *T2_b = T2_ab->rchild();
+		if (T2_b == T2_a)
+			T2_b = T2_ab->lchild();
+		// cut T1_a, T1_c, T2_a, T2_b, T2_c
+
+		bool cut_b_only = false;
+		if (T2_a->parent() != NULL && T2_a->parent()->parent() != NULL && T2_a->parent()->parent() == T2_c->parent()) {
+			cut_b_only = true;
+			T1_a->add_to_sibling_pairs(sibling_pairs,1);
+			T1_c->add_to_sibling_pairs(sibling_pairs,2);
+		}
+
+		if (!cut_b_only) {
+			T1_a->cut_parent();
+			T1_c->cut_parent();
+			// contract parents
+			Node *node = T1_ac->contract();
+			// check for T1_ac sibling pair
+			if (node != NULL && node && node->is_sibling_pair()){
+				node->lchild()->add_to_sibling_pairs(sibling_pairs,1);
+				node->rchild()->add_to_sibling_pairs(sibling_pairs,2);
+			}
+		}
+
+		bool same_component = true;
+		if (APPROX_CHECK_COMPONENT)
+			same_component = (T2_a->find_root() == T2_c->find_root());
+
+		if (!cut_b_only) {
+			T2_a->cut_parent();
+			num_cut++;
+		}
+		bool cut_b = false;
+		if (same_component && T2_ab->parent() != NULL) {
+			T2_b->cut_parent();
+			num_cut++;
+			cut_b = true;
+		}
+		// T2_b will move up after contraction
+		else {
+			T2_b = T2_b->parent();
+		}
+		// check for T2 parents as singletons
+		Node *node = T2_ab->contract();
+		if (node != NULL && node->is_singleton()
+				&& node != T2->get_component(0))
+			singletons->push_back(node);
+
+		// if T2_c is gone then its replacement is in singleton list
+		// contract might delete old T2_c, see where it is
+		bool add_T2_c = true;
+		T2_c = T1_c->get_twin();
+		// ignore T2_c if it is a singleton
+		if (T2_c != node && T2_c->parent() != NULL && !cut_b_only) {
+
+			Node *T2_c_parent = T2_c->parent();
+			T2_c->cut_parent();
+			num_cut++;
+			node = T2_c_parent->contract();
+			if (node != NULL && node->is_singleton()
+					&& node != T2->get_component(0))
+				singletons->push_back(node);
+		}
+		else {
+			add_T2_c = false;
+		}
+
+
+		if (!cut_b_only)
+			T1->add_component(T1_a);
+		if (!cut_b_only)
+			T1->add_component(T1_c);
+		// put T2 cut parts into T2
+		if (!cut_b_only) {
+			T2->add_component(T2_a);
+		}
+		// may have already been added
+		if (cut_b) {
+			T2->add_component(T2_b);
+		}
+		// problem if c is deleted
+		if (add_T2_c) {
+			T2->add_component(T2_c);
+		}
+
+		// may have already been added
+		if (T2_b->is_leaf())
+			singletons->push_back(T2_b);
+
+	}
+}
+	}
+// if the first component of the forests differ then we have to cut p
+if (T1->get_component(0)->get_twin() != T2->get_component(0)) {
+	num_cut++;
+	T1->add_rho();
+	T2->add_rho();
+}
+return num_cut;
+}
+*/
+
+
 __attribute__((always_inline)) inline int rSPR_worse_3_mult_approx_hlpr_Inline(Forest *T1, Forest *T2, list<Node *> *singletons, list<Node *> *sibling_groups, Forest **F1, Forest **F2, bool &save_forests) {
 
   int num_cut = 0;
