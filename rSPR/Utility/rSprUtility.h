@@ -470,24 +470,30 @@ namespace rSprUtility
 	}
 
 	__attribute__((always_inline)) inline int count_differing_bipartitions_Inline(
+		//SHADOWED FUNCTION
 		int (*count_differing_bipartitions)(Node* n),
+		// Original param
 		Node *n) {
 		//cout << "Start: " << n->str_subtree() << endl;
 		int count = 0;
+
+		// Using the Iterator, we iterate over a list of nodes
+
 		list<Node *>::iterator c;
 		for(c = n->get_children().begin(); c != n->get_children().end(); c++) {
 			count += count_differing_bipartitions(*c);
 		}
-		if (n->get_twin() == NULL ||
-	//			n->get_depth() > n->get_twin()->get_twin()->get_depth())
-				n != n->get_twin()->get_twin()) {
+		if (n->get_twin() == NULL || n != n->get_twin()->get_twin()) {
 			count++;
-				}
+		}
 		return count;
 	}
 
    __attribute__((always_inline)) inline bool is_nonbranching_Inline(
+   	// SHADOWED PARAMS
  	bool &CUT_ONE_B, bool &CUT_TWO_B, bool &CUT_TWO_B_ROOT, bool &REVERSE_CUT_ONE_B, bool &REVERSE_CUT_ONE_B_2,
+
+ 	// ORIGINAL PARAMS
  	Forest *T1, Forest *T2, Node *T1_a, Node *T1_c, Node *T2_a, Node *T2_c) {
 	if ((T2_a->get_depth() < T2_c->get_depth()
 			&& T2_c->parent() != NULL)
