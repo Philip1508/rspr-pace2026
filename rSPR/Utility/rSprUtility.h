@@ -29,7 +29,6 @@ namespace rSprUtility
 {
 
 
-
 	__attribute__((always_inline)) inline void add_sibling_pair_Inline(set<SiblingPair> *sibling_pairs, Node *a, Node *c, UndoMachine *um) {
 		SiblingPair sp = SiblingPair(a,c);
 		pair< set<SiblingPair>::iterator, bool> ins =

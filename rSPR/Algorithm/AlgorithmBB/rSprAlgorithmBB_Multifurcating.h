@@ -21,14 +21,130 @@ public:
 
 namespace rSprBB_Multifurcating {
 
+
+/* Generates a copy of the data used to recurse on rSPR_branch_and_bound_mult_hlpr so
+   that original forests aren't clobbered,
+   updates pointers accordingly */
+//
+	__attribute__((always_inline)) inline bb_mult_recurse_data *generate_mult_recurse_data_Inline(
+		Forest *T1, Forest *T2, list<Node*> *sibling_groups, list<Node*> *singletons) {
+
+		bb_mult_recurse_data *data = new bb_mult_recurse_data();
+
+		data->node_map = map<Node*, Node*>();
+		data->T1 = new Forest(T1, &data->node_map);
+		data->T2 = new Forest(T2, &data->node_map);
+		//TODO: smarter way of syncing
+		//for (auto n = node_map.begin(); n != node_map.end(); n++) {
+		//(*n).first->set_twin(node_map[(*n).first->get_twin()]);
+		/*
+		  if ((*n).second->is_leaf()) {
+		  (*n).second->set_twin(node_map[(*n).first->get_twin()]);
+		  node_map[(*n).first->get_twin()]->set_twin((*n).second);
+		  cout << "Synced twin : " << (*n).second->str() << " -> " << (*n).second->get_twin()->str() << endl;}*/
+		//}
+		sync_twins(data->T1, data->T2);
+		data->sibling_groups = new list<Node*>();
+		for (auto n = sibling_groups->begin(); n != sibling_groups->end(); n++) {
+			data->sibling_groups->push_back(data->node_map[*n]);
+		}
+		data->singletons = new list<Node*>();
+		for (auto n = singletons->begin(); n != singletons->end(); n++) {
+			data->singletons->push_back(data->node_map[*n]);
+		}
+		return data;
+	}
+
+
+	//Cuts to_cut, adds to components, conditionally adds to singletons
+	//Assumes parent is not null and no Null parameters
+
+	__attribute__((always_inline)) inline void mult_cut_and_cleanup_Inline(
+		Node* to_cut, Forest *T2, list<Node*> *singletons) {
+		//Node* T2_a1_next = next_data->node_map[T2_a1];
+		Node* to_cut_p = to_cut->parent();
+		//Cut connections
+		to_cut->cut_parent();
+		//add as components
+		T2->add_component(to_cut);
+		//Just cut 1 of two children of a1 parent
+		if (to_cut_p->get_children().size() == 1) {
+			if (to_cut_p->parent() == NULL) {
+				to_cut_p->contract(true);
+				if (to_cut_p->is_singleton() && to_cut_p != T2->get_component(0)) {
+					singletons->push_front(to_cut_p);
+				}
+			}
+			else {
+				Node* to_cut_b = to_cut_p->get_children().front();
+				to_cut_p->contract(true);
+				if (to_cut_b->is_singleton() && to_cut_b != T2->get_component(0)) {
+					singletons->push_front(to_cut_b);
+				}
+			}
+		}
+		//Check for singletons
+		if (to_cut->is_singleton())
+			singletons->push_front(to_cut);
+	}
+
+
+	//cuts everything except node, possibly expanding, adds to components, conditionally adds to singletons
+	//Assumes parent is not null and no Null parameters
+	//NOTE: potentially unsafe for preorder numbers
+	__attribute__((always_inline)) inline void mult_cut_all_except_and_cleanup_Inline(
+		Node* T2_a1, Forest *T2, list<Node*> *singletons) {
+		Node* T2_b1;
+		Node* parent = T2_a1->parent();
+		if (parent->get_children().size() == 2) {
+			T2_b1 = parent->get_children().front() == T2_a1 ?
+			  parent->get_children().back() :
+			  parent->get_children().front();
+		}
+		else {
+			list<Node*> all_but_a1 = list<Node*>(parent->get_children());
+			all_but_a1.remove(T2_a1);
+			T2_b1 = parent->expand_children_out(all_but_a1);
+			T2_b1->set_preorder_number(parent->get_preorder_number());
+		}
+		//hack for now
+		//We immediately contract a1 up so we know the parent's preorder number is available
+		//Cut connections
+
+		T2_b1->cut_parent();
+
+		//add as components
+		T2->add_component(T2_b1);
+
+		//Just cut 1 of two children of a2 parent (will always be in this case?)
+		if (parent->get_children().size() == 1) {
+			if (parent->parent() == NULL) {
+				parent->contract(true);
+				if (parent->is_singleton() && parent != T2->get_component(0)) {
+					singletons->push_front(parent);
+				}
+			}
+			else {
+				parent = parent->contract(true);
+				if (T2_a1->is_singleton() && T2_a1 != T2->get_component(0))
+					singletons->push_front(T2_a1);
+			}
+		}
+		if (T2_b1->is_singleton())
+			singletons->push_front(T2_b1);
+	}
+
+
+
 	//Adds rho and a certain singleton to cut. Basically its for realising when we have cut rho but it is already a singleton so we explicitly continue on
-	__attribute__((always_inline)) inline void MULT_RHO_CUT_AND_RESOLVE(
+	//__attribute__((always_inline)) inline
+	void MULT_RHO_CUT_AND_RESOLVE(
 
 	bb_mult_recurse_data *(*generate_mult_recurse_data)(Forest *T1, Forest *T2, list<Node*> *sibling_groups, list<Node*> *singletons),
 	int (*rSPR_branch_and_bound_mult_hlpr)(Forest *T1, Forest *T2, int k, list<Node*> *sibling_groups, list<Node*> *singletons, Node *protected_node, list<pair<Forest,Forest>> *AFs, int* num_ties),
 
 	
-		Forest *T1, Forest *T2, int &k,int &best_k, list<Node*> *sibling_groups,
+		Forest *T1, Forest *T2, int &k ,int &best_k, list<Node*> *sibling_groups,
 		list<Node*> *singletons, list<pair<Forest,Forest>> *AFs,
 						int* num_ties,
 		Node *rho_to_singleton, Node *node_to_protect) {
@@ -53,7 +169,8 @@ namespace rSprBB_Multifurcating {
 
 	//TODO (Ben): try using a routine instead of a macro, I suspect it will slow down because of
 	//            stack and parameter passing though
-	__attribute__((always_inline)) inline void MULT_BB_CUT_AND_RESOLVE(
+	//__attribute__((always_inline)) inline
+	void MULT_BB_CUT_AND_RESOLVE(
 			bool &ALL_MAFS,
 
 			int (*rSPR_branch_and_bound_mult_hlpr)(Forest *T1, Forest *T2, int k, list<Node*> *sibling_groups, list<Node*> *singletons, Node *protected_node, list<pair<Forest,Forest>> *AFs, int* num_ties),
@@ -69,7 +186,7 @@ namespace rSprBB_Multifurcating {
 		list<Node*> *singletons, list<pair<Forest,Forest>> *AFs, int* num_ties,
 
 		
-	vector<Node*> nodes_to_cut,  vector<Node*> nodes_to_exclude_cutting, Node *node_to_protect) {
+	vector<Node*> &nodes_to_cut,  vector<Node*> &nodes_to_exclude_cutting, Node *node_to_protect) {
 		bb_mult_recurse_data *next_data = generate_mult_recurse_data(T1, T2, sibling_groups, singletons);
 		int num_cuts = 0;
 		for (int i = 0; i < nodes_to_cut.size(); i++) {
@@ -95,15 +212,16 @@ namespace rSprBB_Multifurcating {
 		if (result_k > best_k) {
 			best_k = result_k;
 			if (!ALL_MAFS && best_k > -1) {
+
 			}
 		}
 	}
 
 
-
-
-
-    __attribute__((always_inline)) inline int rSPR_branch_and_bound_mult_hlpr_Inline(
+	
+	//TODO: UndoMachine, then cleanup all constructors, bb_mult_recurse_data relying on copies of trees
+    //__attribute__((always_inline)) inline
+	int rSPR_branch_and_bound_mult_hlpr_Inline(
     // Shadowed Params
     bool &BB,
     bool &MULT_4_BRANCH,
@@ -116,14 +234,12 @@ namespace rSprBB_Multifurcating {
     void (*mult_cut_and_cleanup)(Node* to_cut, Forest *T2, list<Node*> *singletons),
     void (*mult_cut_all_except_and_cleanup)(Node* T2_a1, Forest *T2, list<Node*> *singletons),
 
-
-
 	// Original Params
     Forest *T1, Forest *T2,
-				    int k,
+				    int &k,
 				    list<Node*> *sibling_groups, list<Node*> *singletons,
 				    Node *protected_node, list<pair<Forest,Forest>> *AFs,
-				    int* num_ties) {
+				    int* num_ties){
   //run out of cuts if k < 0
   if (k < 0) {
     return k;
@@ -131,21 +247,21 @@ namespace rSprBB_Multifurcating {
   Node* previous_group = sibling_groups->back();
   int best_k = -1;
   while(!singletons->empty() || !sibling_groups->empty()) {
-
+	  
     // Case 1 - Remove singletons
     while(!singletons->empty()) {
-
+      
       Node *T2_a = singletons->back();
       singletons->pop_back();
       #ifdef DEBUG
       cout << "Handling singleton: " << T2_a->str() << endl;
       #endif
-
+      
       Node *T1_a = T2_a->get_twin();
       Node *T1_a_p = T1_a->parent();
-
+      
       if (T1_a_p == NULL)
-	continue;
+	continue;      
 
       // find twin in T1
       //If we have added component 0, then we have made a B cut and added rho
@@ -165,7 +281,7 @@ namespace rSprBB_Multifurcating {
 	T1_a_p->decrement_non_leaf_children();
       }
       T1->add_component(T1_a);
-
+      
       //only contract if one node
       if (T1_a_p->get_children().size() == 1) {
 	//If we contract this node, and it used to be a sibling group
@@ -176,32 +292,32 @@ namespace rSprBB_Multifurcating {
 	  cout << "Removed " << T1_a_p->str() << " from sibling groups" << endl;
 	  #endif
 	}
-
+	
 	Node *possible_previous_sibling = T1_a_p->get_children().front();
 	bool was_sibling_group = possible_previous_sibling->is_sibling_group();
-
+	
 	Node *T1_a_gp = T1_a_p->parent();
 	Node *T1_new_a_p = T1_a_p;
-
+	
 	//If the child is a sibling group, there is a possibility contract()
 	//will delete it, so we need to update it in the sibling groups
 	if (T1_a_p->parent() == NULL) {
 	  if (was_sibling_group){
 	    list<Node*>::iterator i = find(sibling_groups->begin(), sibling_groups->end(), possible_previous_sibling);
-	    *i = T1_new_a_p;
+	    *i = T1_new_a_p;	    
 	  }
 	}
 	else {
 	  T1_new_a_p = possible_previous_sibling;
 	}
-
+       
         T1_a_p->contract(true);
 	T1_new_a_p->recalculate_non_leaf_children();
 	//After contracting this, the grandparent may be a sibling group now
 	if (T1_a_gp != NULL) {
 	  T1_a_gp->recalculate_non_leaf_children(); //can we tell what this would be instead of recalculating?
-	  if (T1_a_gp->is_sibling_group()) {
-	    sibling_groups->push_front(T1_a_gp);
+	  if (T1_a_gp->is_sibling_group()) {	 
+	    sibling_groups->push_front(T1_a_gp);	 
 	  }
 	}
       }
@@ -248,11 +364,11 @@ namespace rSprBB_Multifurcating {
       cout << endl;
       #endif
 
-      /*
+      /* 
 	 Case where a subset of the group have the same parent both in T1 and T2
       */
       // Case 2 - Contract identical sibling pair
-      if (identical_sibling_groups.size() > 0) {
+      if (identical_sibling_groups.size() > 0) {	  		
 	list<list<Node *>>::iterator i;
 	for (i = identical_sibling_groups.begin(); i != identical_sibling_groups.end(); i++) {
 	  //Contract the groups
@@ -269,7 +385,7 @@ namespace rSprBB_Multifurcating {
 
 	  //Maintain twins
 	  T1_group_new->set_twin(T2_group_new);
-	  T2_group_new->set_twin(T1_group_new);
+	  T2_group_new->set_twin(T1_group_new);			
 
 	  // check if T2_p is a singleton after the contraction
 	  if (T2_p->is_singleton() && T2_p != T2->components[0]){
@@ -291,7 +407,7 @@ namespace rSprBB_Multifurcating {
 	    //cout << "Removed new sibling group after contraction: " << T1_sibling_group->str() << endl;
 	      #endif
 
-	  }
+	  }	  
 	}
       }
 
@@ -345,7 +461,7 @@ namespace rSprBB_Multifurcating {
 	vector<vector<Node*>> siblings_by_depth;
 	//Get depth of siblings from root of each component
 	//If the lca is null, all siblings are in different components, ie no path between them
-	if (arbitrary_lca == NULL) {
+	if (arbitrary_lca == NULL) {	
 	  siblings_by_depth = vector<vector<Node *>>(10);
 	  for (int i = 0; i != T2->components.size(); i++) {
 	    //if preorder is -1 then this is rho
@@ -359,7 +475,7 @@ namespace rSprBB_Multifurcating {
 	}
 	map<Node*, int> s_map = map<Node*, int>();
 	//Get deepest siblings returns sparse vector, this compacts it
-	deepest_siblings = contract_deepest_siblings(siblings_by_depth, &s_map);
+	deepest_siblings = contract_deepest_siblings(siblings_by_depth, &s_map);      
 	// Should assert here
 	if (deepest_siblings.size() < 2) { cout << "improper length" << endl; }
 
@@ -385,7 +501,7 @@ namespace rSprBB_Multifurcating {
 	  else {
 	    T2_ax = T2_a2;
 	  }
-
+	  
 	  bool a0_descendant_of_lca = false;
 	  Node* stepper = protected_node;
 	  while (stepper->parent() != NULL && stepper->parent() != arbitrary_lca) {
@@ -399,7 +515,7 @@ namespace rSprBB_Multifurcating {
 	  //           as well as any other flags, before step 7 check
 	  bool pl_has_aj_child = false;
 	  if (arbitrary_lca != NULL) {
-	    Node* pl = arbitrary_lca->parent();
+	    Node* pl = arbitrary_lca->parent();	  
 	    if (pl != NULL) {
 	      for (auto i = pl->get_children().begin(); i != pl->get_children().end(); i++) {
 		if (*i != arbitrary_lca && descendant_count[(*i)->get_preorder_number()] == -1) {
@@ -417,15 +533,14 @@ namespace rSprBB_Multifurcating {
 	    #ifdef DEBUG_CASE_COUNTER
 	    case_counter.case_71++;
 	    #endif
-	    /*
+	    /* 
 	       recurse on cut ax prot protected node
 	    */
 	    //7.1 : cut ax
 	    if (T2_ax->parent() != NULL) {
 	      vector<Node*> to_cut = {T2_ax};
 	      vector<Node*> to_cut_except = {};
-	      MULT_BB_CUT_AND_RESOLVE( ALL_MAFS, rSPR_branch_and_bound_mult_hlpr, generate_mult_recurse_data, mult_cut_and_cleanup, mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,
-	      	to_cut, to_cut_except, protected_node);
+	      MULT_BB_CUT_AND_RESOLVE(ALL_MAFS,rSPR_branch_and_bound_mult_hlpr,generate_mult_recurse_data,mult_cut_and_cleanup,mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties, to_cut, to_cut_except, protected_node);
 	    }
 	  }
 
@@ -446,16 +561,16 @@ namespace rSprBB_Multifurcating {
 	      vector<Node*> to_cut = {};
 	      vector<Node*> to_cut_except = {};
 	      Node* stepper = T2_a1;
-
-	      while(stepper->parent() != arbitrary_lca) {
+		
+	      while(stepper->parent() != arbitrary_lca) { 
 		to_cut_except.push_back(stepper);
 		stepper = stepper->parent();
 	      }
-	      //TODO: use list to push_front or figure out how to add from top to bottom
+	      //TODO: use list to push_front or figure out how to add from top to bottom 
 	      reverse(to_cut_except.begin(), to_cut_except.end());
-	      MULT_BB_CUT_AND_RESOLVE( ALL_MAFS, rSPR_branch_and_bound_mult_hlpr, generate_mult_recurse_data, mult_cut_and_cleanup, mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, protected_node);
+	      MULT_BB_CUT_AND_RESOLVE(ALL_MAFS,rSPR_branch_and_bound_mult_hlpr,generate_mult_recurse_data,mult_cut_and_cleanup,mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, protected_node);
 	    }
-
+	    
 	    if (s_map[T2_a1] > 1 ||
 		s_map[deepest_siblings[deepest_siblings.size()-1]] > 0){
 	      /*
@@ -468,8 +583,8 @@ namespace rSprBB_Multifurcating {
 	      if (T2_a1->parent() != NULL) {
 		vector<Node*> to_cut = {T2_a1};
 		vector<Node*> to_cut_except = {};
-		MULT_BB_CUT_AND_RESOLVE( ALL_MAFS, rSPR_branch_and_bound_mult_hlpr, generate_mult_recurse_data, mult_cut_and_cleanup, mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, protected_node);
-	      }
+		MULT_BB_CUT_AND_RESOLVE(ALL_MAFS,rSPR_branch_and_bound_mult_hlpr,generate_mult_recurse_data,mult_cut_and_cleanup,mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, protected_node);
+	      }     
 	    }
 	     /*
 
@@ -483,10 +598,10 @@ namespace rSprBB_Multifurcating {
 	      #endif
 	      vector<Node*> to_cut = {T2_a2};
 	      vector<Node*> to_cut_except = {};
-	      MULT_BB_CUT_AND_RESOLVE( ALL_MAFS, rSPR_branch_and_bound_mult_hlpr, generate_mult_recurse_data, mult_cut_and_cleanup, mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, protected_node);
+	      MULT_BB_CUT_AND_RESOLVE(ALL_MAFS,rSPR_branch_and_bound_mult_hlpr,generate_mult_recurse_data,mult_cut_and_cleanup,mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, protected_node);	      
 	    }
-	  }
-
+	  }	
+	    
 
 	  //TODO: Is component 0 considered a root?
 	  //If we do get component 0 can we consider this if rho has been added?
@@ -513,7 +628,7 @@ namespace rSprBB_Multifurcating {
 	    {
 	      vector<Node*> to_cut = {};
 	      vector<Node*> to_cut_except = {T2_ax};
-	      MULT_BB_CUT_AND_RESOLVE( ALL_MAFS, rSPR_branch_and_bound_mult_hlpr, generate_mult_recurse_data, mult_cut_and_cleanup, mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, protected_node);
+	      MULT_BB_CUT_AND_RESOLVE(ALL_MAFS,rSPR_branch_and_bound_mult_hlpr,generate_mult_recurse_data,mult_cut_and_cleanup,mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, protected_node);
 	    }
 	    /*
 
@@ -525,7 +640,7 @@ namespace rSprBB_Multifurcating {
 	      cout << "Case 7.3 Cut T2_ax: " << T2_ax->str() << " Protected Node: " << protected_node->str() << endl;
 	      vector<Node*> to_cut = {T2_ax};
 	      vector<Node*> to_cut_except = {};
-	      MULT_BB_CUT_AND_RESOLVE( ALL_MAFS, rSPR_branch_and_bound_mult_hlpr, generate_mult_recurse_data, mult_cut_and_cleanup, mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, protected_node);
+	      MULT_BB_CUT_AND_RESOLVE(ALL_MAFS,rSPR_branch_and_bound_mult_hlpr,generate_mult_recurse_data,mult_cut_and_cleanup,mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, protected_node);
 	      }
 	    */
 	  }
@@ -535,7 +650,7 @@ namespace rSprBB_Multifurcating {
 	  else if (a0_descendant_of_lca) {
 	    /*
 	      recurse on cut ax prot protected_node
-	                 if m > 2 and r > 2 recurse on
+	                 if m > 2 and r > 2 recurse on 
 			    cut all Bx's then B`x
 	     */
 	    //7.4 cut ax
@@ -549,7 +664,7 @@ namespace rSprBB_Multifurcating {
 	    {
 	      vector<Node*> to_cut = {T2_ax};
 	      vector<Node*> to_cut_except = {};
-	      MULT_BB_CUT_AND_RESOLVE( ALL_MAFS, rSPR_branch_and_bound_mult_hlpr, generate_mult_recurse_data, mult_cut_and_cleanup, mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, protected_node);
+	      MULT_BB_CUT_AND_RESOLVE(ALL_MAFS,rSPR_branch_and_bound_mult_hlpr,generate_mult_recurse_data,mult_cut_and_cleanup,mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, protected_node);
 	    }
 	    if (T1_sibling_group->get_children().size() > 2 && deepest_siblings.size() > 2) {
 	      #ifdef DEBUG
@@ -559,15 +674,15 @@ namespace rSprBB_Multifurcating {
 	      vector<Node*> to_cut = {};
 	      vector<Node*> to_cut_except = {};
 	      Node* stepper = T2_ax;
-
+		
 	      while(stepper->parent() != arbitrary_lca) { //Do we know ax is descendant of lca?
 		to_cut_except.push_back(stepper);
 		stepper = stepper->parent();
 	      }
-	      //TODO: use list to push_front or figure out how to add from top to bottom
+	      //TODO: use list to push_front or figure out how to add from top to bottom 
 	      reverse(to_cut_except.begin(), to_cut_except.end());
 	      to_cut_except.push_back(T2_ax);
-	      MULT_BB_CUT_AND_RESOLVE( ALL_MAFS, rSPR_branch_and_bound_mult_hlpr, generate_mult_recurse_data, mult_cut_and_cleanup, mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, protected_node);
+	      MULT_BB_CUT_AND_RESOLVE(ALL_MAFS,rSPR_branch_and_bound_mult_hlpr,generate_mult_recurse_data,mult_cut_and_cleanup,mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, protected_node);	      
 	    }
 	    /*
 
@@ -577,12 +692,12 @@ namespace rSprBB_Multifurcating {
 	    {
 	      vector<Node*> to_cut = {T2_a2};
 	      vector<Node*> to_cut_except = {};
-	      MULT_BB_CUT_AND_RESOLVE( ALL_MAFS, rSPR_branch_and_bound_mult_hlpr, generate_mult_recurse_data, mult_cut_and_cleanup, mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, protected_node);
+	      MULT_BB_CUT_AND_RESOLVE(ALL_MAFS,rSPR_branch_and_bound_mult_hlpr,generate_mult_recurse_data,mult_cut_and_cleanup,mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, protected_node);	     
 	    }
 	    {
 	      vector<Node*> to_cut = {};
 	      vector<Node*> to_cut_except = {T2_a1};
-	      MULT_BB_CUT_AND_RESOLVE( ALL_MAFS, rSPR_branch_and_bound_mult_hlpr, generate_mult_recurse_data, mult_cut_and_cleanup, mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, protected_node);
+	      MULT_BB_CUT_AND_RESOLVE(ALL_MAFS,rSPR_branch_and_bound_mult_hlpr,generate_mult_recurse_data,mult_cut_and_cleanup,mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, protected_node);	     
 	    }
 
 	    /*
@@ -592,7 +707,7 @@ namespace rSprBB_Multifurcating {
 		T2_a2 != protected_node) {
 	      vector<Node*> to_cut = {T2_a2};
 	      vector<Node*> to_cut_except = {};
-	      MULT_BB_CUT_AND_RESOLVE( ALL_MAFS, rSPR_branch_and_bound_mult_hlpr, generate_mult_recurse_data, mult_cut_and_cleanup, mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, protected_node);
+	      MULT_BB_CUT_AND_RESOLVE(ALL_MAFS,rSPR_branch_and_bound_mult_hlpr,generate_mult_recurse_data,mult_cut_and_cleanup,mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, protected_node);
 	      }*/
 	  }
 	}
@@ -609,7 +724,7 @@ namespace rSprBB_Multifurcating {
 	  bool all_s1 = s_map[deepest_siblings[deepest_siblings.size()-1]] == 1 &&
 	    all_but_ar_s1;
 
-	  bool lca_p_contains_sibling = false;
+	  bool lca_p_contains_sibling = false;	    
 	  if (arbitrary_lca != NULL && arbitrary_lca->parent() != NULL) {
 	    for (list<Node*>::iterator i = arbitrary_lca->parent()->get_children().begin();
 		 i != arbitrary_lca->parent()->get_children().end();
@@ -638,11 +753,11 @@ namespace rSprBB_Multifurcating {
 	    if (T2_a1->parent() != NULL) {
 	      vector<Node*> to_cut = {T2_a1};
 	      vector<Node*> to_cut_except = {};
-	      MULT_BB_CUT_AND_RESOLVE( ALL_MAFS, rSPR_branch_and_bound_mult_hlpr, generate_mult_recurse_data, mult_cut_and_cleanup, mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, NULL);
+	      MULT_BB_CUT_AND_RESOLVE(ALL_MAFS,rSPR_branch_and_bound_mult_hlpr,generate_mult_recurse_data,mult_cut_and_cleanup,mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, NULL);
 	    }
 	    else if (T2_a1 == T2->get_component(0)) {
 	      if (!T1->contains_rho()) {
-		MULT_RHO_CUT_AND_RESOLVE(generate_mult_recurse_data, rSPR_branch_and_bound_mult_hlpr, T1, T2, k, best_k, sibling_groups,singletons,AFs,num_ties,T2_a1, NULL);
+		MULT_RHO_CUT_AND_RESOLVE(generate_mult_recurse_data,rSPR_branch_and_bound_mult_hlpr,T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,T2_a1, NULL);
 	      }
 	    }
 #ifdef DEBUG
@@ -652,14 +767,14 @@ namespace rSprBB_Multifurcating {
 	    if (T2_a2->parent() != NULL) {
 	      vector<Node*> to_cut = {T2_a2};
 	      vector<Node*> to_cut_except = {};
-	      MULT_BB_CUT_AND_RESOLVE( ALL_MAFS, rSPR_branch_and_bound_mult_hlpr, generate_mult_recurse_data, mult_cut_and_cleanup, mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, NULL);
+	      MULT_BB_CUT_AND_RESOLVE(ALL_MAFS,rSPR_branch_and_bound_mult_hlpr,generate_mult_recurse_data,mult_cut_and_cleanup,mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, NULL);
 	    }
 	    else if (T2_a2 == T2->get_component(0)) {
 	      if (!T1->contains_rho()) {
-		MULT_RHO_CUT_AND_RESOLVE(generate_mult_recurse_data, rSPR_branch_and_bound_mult_hlpr, T1, T2, k, best_k, sibling_groups,singletons,AFs,num_ties,T2_a1, NULL);
+		MULT_RHO_CUT_AND_RESOLVE(generate_mult_recurse_data,rSPR_branch_and_bound_mult_hlpr,T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,T2_a2, NULL);
 	      }
 	    }
-
+	  
 	  }
 	  //step 8.2
 	  else if (all_but_ar_s1 &&
@@ -668,7 +783,7 @@ namespace rSprBB_Multifurcating {
 	      recurse on cut all B's except shallowest
 	      for each sibling except for shallowest,
 	      cut all other B's protect ai
-
+		           
 	    */
 	    //8.2 B's
 	    {
@@ -684,7 +799,7 @@ namespace rSprBB_Multifurcating {
 	      for (int i = 0; i < deepest_siblings.size() - 1; i++) {
 		to_cut_except.push_back(deepest_siblings[i]);
 	      }
-	      MULT_BB_CUT_AND_RESOLVE( ALL_MAFS, rSPR_branch_and_bound_mult_hlpr, generate_mult_recurse_data, mult_cut_and_cleanup, mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, NULL);
+	      MULT_BB_CUT_AND_RESOLVE(ALL_MAFS,rSPR_branch_and_bound_mult_hlpr,generate_mult_recurse_data,mult_cut_and_cleanup,mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, NULL);
 	    }
 	    //all other B's except ai
 	    //Doesnt explicitly say this in the paper, but
@@ -704,7 +819,7 @@ namespace rSprBB_Multifurcating {
 		    to_cut_except.push_back(deepest_siblings[j]);
 		  }
 		}
-		MULT_BB_CUT_AND_RESOLVE( ALL_MAFS, rSPR_branch_and_bound_mult_hlpr, generate_mult_recurse_data, mult_cut_and_cleanup, mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, deepest_siblings[i]);
+		MULT_BB_CUT_AND_RESOLVE(ALL_MAFS,rSPR_branch_and_bound_mult_hlpr,generate_mult_recurse_data,mult_cut_and_cleanup,mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, deepest_siblings[i]);
 	      }
 	      }
 	    /*
@@ -724,7 +839,7 @@ namespace rSprBB_Multifurcating {
 #endif
 		    vector<Node*> to_cut = {T2_a2};
 		    vector<Node*> to_cut_except = {};
-		    MULT_BB_CUT_AND_RESOLVE( ALL_MAFS, rSPR_branch_and_bound_mult_hlpr, generate_mult_recurse_data, mult_cut_and_cleanup, mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, NULL);
+		    MULT_BB_CUT_AND_RESOLVE(ALL_MAFS,rSPR_branch_and_bound_mult_hlpr,generate_mult_recurse_data,mult_cut_and_cleanup,mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, NULL);
 		    break;
 		  }
 		}
@@ -736,11 +851,11 @@ namespace rSprBB_Multifurcating {
 	      else if (deepest_siblings.size() == 2) {
 		  vector<Node*> to_cut = {T2_a2};
 		  vector<Node*> to_cut_except = {};
-		  MULT_BB_CUT_AND_RESOLVE( ALL_MAFS, rSPR_branch_and_bound_mult_hlpr, generate_mult_recurse_data, mult_cut_and_cleanup, mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, NULL);
+		  MULT_BB_CUT_AND_RESOLVE(ALL_MAFS,rSPR_branch_and_bound_mult_hlpr,generate_mult_recurse_data,mult_cut_and_cleanup,mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, NULL);
 	      }
 
 	  }
-
+	  
 
 	  //step 8.3
 	  else if (T1_sibling_group->get_children().size() == 2 &&
@@ -760,7 +875,7 @@ namespace rSprBB_Multifurcating {
 
 	      vector<Node*> to_cut = {T2_a1};
 	      vector<Node*> to_cut_except = {};
-	      MULT_BB_CUT_AND_RESOLVE( ALL_MAFS, rSPR_branch_and_bound_mult_hlpr, generate_mult_recurse_data, mult_cut_and_cleanup, mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, NULL);
+	      MULT_BB_CUT_AND_RESOLVE(ALL_MAFS,rSPR_branch_and_bound_mult_hlpr,generate_mult_recurse_data,mult_cut_and_cleanup,mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, NULL);
 	    }
 	    //8.3 : Cut a2
 	    if (T2_a2->parent() != NULL) {
@@ -769,7 +884,7 @@ namespace rSprBB_Multifurcating {
 #endif
 	      vector<Node*> to_cut = {T2_a2};
 	      vector<Node*> to_cut_except = {};
-	      MULT_BB_CUT_AND_RESOLVE( ALL_MAFS, rSPR_branch_and_bound_mult_hlpr, generate_mult_recurse_data, mult_cut_and_cleanup, mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, NULL);
+	      MULT_BB_CUT_AND_RESOLVE(ALL_MAFS,rSPR_branch_and_bound_mult_hlpr,generate_mult_recurse_data,mult_cut_and_cleanup,mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, NULL);
 	    }
 	    //8.3 : All along path from a1, a2
 	    {
@@ -779,7 +894,7 @@ namespace rSprBB_Multifurcating {
 	      vector<Node*> to_cut = {};
 	      vector<Node*> to_cut_except = {};
 	      Node* stepper = T2_a1;
-
+		
 	      while(stepper->parent() != arbitrary_lca) { //no need to check for null! we know theres a path
 		to_cut_except.push_back(stepper);
 		stepper = stepper->parent();
@@ -795,10 +910,10 @@ namespace rSprBB_Multifurcating {
 		the node, since contraction is implemented by cutting the parent, then giving
 		the child to the parent
 	      */
-	      //TODO: use list to push_front or figure out how to add from top to bottom
+	      //TODO: use list to push_front or figure out how to add from top to bottom 
 	      reverse(to_cut_except.begin(), to_cut_except.end());
-	      MULT_BB_CUT_AND_RESOLVE( ALL_MAFS, rSPR_branch_and_bound_mult_hlpr, generate_mult_recurse_data, mult_cut_and_cleanup, mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, NULL);
-	    }
+	      MULT_BB_CUT_AND_RESOLVE(ALL_MAFS,rSPR_branch_and_bound_mult_hlpr,generate_mult_recurse_data,mult_cut_and_cleanup,mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, NULL);
+	    }	      
 	  }
 
 	  //step 8.4
@@ -806,7 +921,7 @@ namespace rSprBB_Multifurcating {
 		   deepest_siblings.size() == 2 &&
 		   s_map[T2_a1] == 1 &&
 		   s_map[T2_a2] == 1) {
-	    /*
+	    /* 
 	       recurse on cut a1 and a2 no prot
 	       cut b1 and b2 no prot
 	       cut all except b1 off of lca, b1
@@ -823,7 +938,7 @@ namespace rSprBB_Multifurcating {
 
 	      vector<Node*> to_cut = {T2_a1, T2_a2};
 	      vector<Node*> to_cut_except = {};
-	      MULT_BB_CUT_AND_RESOLVE( ALL_MAFS, rSPR_branch_and_bound_mult_hlpr, generate_mult_recurse_data, mult_cut_and_cleanup, mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, NULL);
+	      MULT_BB_CUT_AND_RESOLVE(ALL_MAFS,rSPR_branch_and_bound_mult_hlpr,generate_mult_recurse_data,mult_cut_and_cleanup,mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, NULL);
 	    }
 	    //8.4 : Cut a1 and a2's B's
 	    {
@@ -832,7 +947,7 @@ namespace rSprBB_Multifurcating {
 #endif
 	      vector<Node*> to_cut = {};
 	      vector<Node*> to_cut_except = {T2_a1, T2_a2};
-	      MULT_BB_CUT_AND_RESOLVE( ALL_MAFS, rSPR_branch_and_bound_mult_hlpr, generate_mult_recurse_data, mult_cut_and_cleanup, mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, NULL);
+	      MULT_BB_CUT_AND_RESOLVE(ALL_MAFS,rSPR_branch_and_bound_mult_hlpr,generate_mult_recurse_data,mult_cut_and_cleanup,mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, NULL);
 	    }
 
 	    //8.4 : All except a1->p, then b1
@@ -842,7 +957,7 @@ namespace rSprBB_Multifurcating {
 #endif
 	      vector<Node*> to_cut = {};
 	      vector<Node*> to_cut_except = {T2_a1->parent(), T2_a1};
-	      MULT_BB_CUT_AND_RESOLVE( ALL_MAFS, rSPR_branch_and_bound_mult_hlpr, generate_mult_recurse_data, mult_cut_and_cleanup, mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, T2_a2);
+	      MULT_BB_CUT_AND_RESOLVE(ALL_MAFS,rSPR_branch_and_bound_mult_hlpr,generate_mult_recurse_data,mult_cut_and_cleanup,mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, T2_a2);
 	    }
 	    //8.4 : All except a2->p, then b2
 	    {
@@ -851,7 +966,7 @@ namespace rSprBB_Multifurcating {
 #endif
 	      vector<Node*> to_cut = {};
 	      vector<Node*> to_cut_except = {T2_a2->parent(), T2_a2};
-	      MULT_BB_CUT_AND_RESOLVE( ALL_MAFS, rSPR_branch_and_bound_mult_hlpr, generate_mult_recurse_data, mult_cut_and_cleanup, mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, T2_a1);
+	      MULT_BB_CUT_AND_RESOLVE(ALL_MAFS,rSPR_branch_and_bound_mult_hlpr,generate_mult_recurse_data,mult_cut_and_cleanup,mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, T2_a1);
 	    }
 	    Node* pl = arbitrary_lca->parent();
 	    bool pl_has_non_aj_child = false;
@@ -868,7 +983,7 @@ namespace rSprBB_Multifurcating {
 	    //If pl_has_non_aj_child then the if will evaluate to true later on anyways
 	    if (!pl_has_non_aj_child) {
 	      if (pl != NULL) {
-		Node* gpl = pl->parent();
+		Node* gpl = pl->parent();		    		    
 		if (gpl != NULL) {
 		  for (auto i = gpl->get_children().begin(); i != gpl->get_children().end(); i++) {
 		    if (*i != pl && descendant_count[(*i)->get_preorder_number()] != -1) {
@@ -890,7 +1005,7 @@ namespace rSprBB_Multifurcating {
 #endif
 		vector<Node*> to_cut = {T2_a1};
 		vector<Node*> to_cut_except = {};
-		MULT_BB_CUT_AND_RESOLVE( ALL_MAFS, rSPR_branch_and_bound_mult_hlpr, generate_mult_recurse_data, mult_cut_and_cleanup, mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, T2_a2);
+		MULT_BB_CUT_AND_RESOLVE(ALL_MAFS,rSPR_branch_and_bound_mult_hlpr,generate_mult_recurse_data,mult_cut_and_cleanup,mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, T2_a2);	
 	      }
 	      //8.4 Cut a2 prot a1
 	      {
@@ -899,7 +1014,7 @@ namespace rSprBB_Multifurcating {
 #endif
 		vector<Node*> to_cut = {T2_a2};
 		vector<Node*> to_cut_except = {};
-		MULT_BB_CUT_AND_RESOLVE( ALL_MAFS, rSPR_branch_and_bound_mult_hlpr, generate_mult_recurse_data, mult_cut_and_cleanup, mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, T2_a1);
+		MULT_BB_CUT_AND_RESOLVE(ALL_MAFS,rSPR_branch_and_bound_mult_hlpr,generate_mult_recurse_data,mult_cut_and_cleanup,mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, T2_a1);	
 	      }
 
 	    }
@@ -922,13 +1037,13 @@ namespace rSprBB_Multifurcating {
 #endif
 #ifdef DEBUG_CASE_COUNTER
 	    case_counter.case_85++;
-#endif
+#endif	    
 	      vector<Node*> to_cut = {};
 	      vector<Node*> to_cut_except = {};
 	      for (int i = 0; i < deepest_siblings.size(); i++) {
 		to_cut.push_back(deepest_siblings[i]);
 	      }
-	      MULT_BB_CUT_AND_RESOLVE( ALL_MAFS, rSPR_branch_and_bound_mult_hlpr, generate_mult_recurse_data, mult_cut_and_cleanup, mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, NULL);
+	      MULT_BB_CUT_AND_RESOLVE(ALL_MAFS,rSPR_branch_and_bound_mult_hlpr,generate_mult_recurse_data,mult_cut_and_cleanup,mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, NULL);
 	    }
 	    //8.5 cut all bi
 	    {
@@ -940,10 +1055,10 @@ namespace rSprBB_Multifurcating {
 	      for (int i = 0; i < deepest_siblings.size(); i++) {
 		to_cut_except.push_back(deepest_siblings[i]);
 	      }
-	      MULT_BB_CUT_AND_RESOLVE( ALL_MAFS, rSPR_branch_and_bound_mult_hlpr, generate_mult_recurse_data, mult_cut_and_cleanup, mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, NULL);
+	      MULT_BB_CUT_AND_RESOLVE(ALL_MAFS,rSPR_branch_and_bound_mult_hlpr,generate_mult_recurse_data,mult_cut_and_cleanup,mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, NULL);
 	    }
 	    //8.5 for each ai cut all a's except ai
-	    {
+	    {	      
 	      for (int i = 0; i < deepest_siblings.size(); i++) {
 #ifdef DEBUG
 		cout << "Case 8.5c cut all a1-ar except ai" << endl;
@@ -955,11 +1070,11 @@ namespace rSprBB_Multifurcating {
 		    to_cut.push_back(deepest_siblings[j]);
 		  }
 		}
-		MULT_BB_CUT_AND_RESOLVE( ALL_MAFS, rSPR_branch_and_bound_mult_hlpr, generate_mult_recurse_data, mult_cut_and_cleanup, mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, deepest_siblings[i]);//TODO protect ai
+		MULT_BB_CUT_AND_RESOLVE(ALL_MAFS,rSPR_branch_and_bound_mult_hlpr,generate_mult_recurse_data,mult_cut_and_cleanup,mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, deepest_siblings[i]);//TODO protect ai
 	      }
 	    }
 	    //8.5 for each ai cut all b's except ai's
-	    {
+	    {	      
 	      for (int i = 0; i < deepest_siblings.size(); i++) {
 #ifdef DEBUG
 		cout << "Case 8.5d cut all B1-Br except Bi" << endl;
@@ -971,7 +1086,7 @@ namespace rSprBB_Multifurcating {
 		    to_cut_except.push_back(deepest_siblings[j]);
 		  }
 		}
-		MULT_BB_CUT_AND_RESOLVE( ALL_MAFS, rSPR_branch_and_bound_mult_hlpr, generate_mult_recurse_data, mult_cut_and_cleanup, mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, deepest_siblings[i]);//TODO protect ai
+		MULT_BB_CUT_AND_RESOLVE(ALL_MAFS,rSPR_branch_and_bound_mult_hlpr,generate_mult_recurse_data,mult_cut_and_cleanup,mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, deepest_siblings[i]);//TODO protect ai
 	      }
 	    }
 	  }
@@ -993,7 +1108,7 @@ namespace rSprBB_Multifurcating {
 	    //if (T2_a1->parent() != NULL) {
 	    //8.6 cut a1
 	    {
-#ifdef DEBUG
+#ifdef DEBUG	     
 	      cout << "Case 8.6a cut a1" << endl;
 #endif
 #ifdef DEBUG_CASE_COUNTER
@@ -1001,35 +1116,35 @@ namespace rSprBB_Multifurcating {
 #endif
 	      vector<Node*> to_cut = {T2_a1};
 	      vector<Node*> to_cut_except = {};
-	      MULT_BB_CUT_AND_RESOLVE( ALL_MAFS, rSPR_branch_and_bound_mult_hlpr, generate_mult_recurse_data, mult_cut_and_cleanup, mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, NULL);
+	      MULT_BB_CUT_AND_RESOLVE(ALL_MAFS,rSPR_branch_and_bound_mult_hlpr,generate_mult_recurse_data,mult_cut_and_cleanup,mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, NULL);
 	    }
 	    //8.6 cut all B1s
 	    {
-#ifdef DEBUG
+#ifdef DEBUG	     
 	      cout << "Case 8.6b cut all B1's" << endl;
 #endif
 	      vector<Node*> to_cut = {};
 	      vector<Node*> to_cut_except = {};
 	      Node* stepper = T2_a1;
-
-	      while(stepper->parent() != arbitrary_lca) {
+		
+	      while(stepper->parent() != arbitrary_lca) { 
 		to_cut_except.push_back(stepper);
 		stepper = stepper->parent();
 	      }
-	      //TODO: use list to push_front or figure out how to add from top to bottom
+	      //TODO: use list to push_front or figure out how to add from top to bottom 
 	      reverse(to_cut_except.begin(), to_cut_except.end());
 
-	      MULT_BB_CUT_AND_RESOLVE( ALL_MAFS, rSPR_branch_and_bound_mult_hlpr, generate_mult_recurse_data, mult_cut_and_cleanup, mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, NULL);
+	      MULT_BB_CUT_AND_RESOLVE(ALL_MAFS,rSPR_branch_and_bound_mult_hlpr,generate_mult_recurse_data,mult_cut_and_cleanup,mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, NULL);
 	    }
 	    //8.6 cut B2
 	    {
-#ifdef DEBUG
+#ifdef DEBUG	     
 	      cout << "Case 8.6c cut B2" << endl;
 #endif
 	      vector<Node*> to_cut = {};
 	      vector<Node*> to_cut_except = {T2_a2};
-	      MULT_BB_CUT_AND_RESOLVE( ALL_MAFS, rSPR_branch_and_bound_mult_hlpr, generate_mult_recurse_data, mult_cut_and_cleanup, mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, NULL);
-	    }
+	      MULT_BB_CUT_AND_RESOLVE(ALL_MAFS,rSPR_branch_and_bound_mult_hlpr,generate_mult_recurse_data,mult_cut_and_cleanup,mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, NULL);
+	    }	      
 	  }
 
 	  //step 8.7
@@ -1039,11 +1154,11 @@ namespace rSprBB_Multifurcating {
 	      recurse on cut a1 no prot,
 	      cut a2 prot a1,
 	      cut all B1's leading up to LCA no prot,
-
+			   
 	    */
 	    //8.7 cut a1
 	    {
-#ifdef DEBUG
+#ifdef DEBUG	     
 	      cout << "Case 8.7a cut a1" << endl;
 #endif
 #ifdef DEBUG_CASE_COUNTER
@@ -1051,34 +1166,34 @@ namespace rSprBB_Multifurcating {
 #endif
 	      vector<Node*> to_cut = {T2_a1};
 	      vector<Node*> to_cut_except = {};
-	      MULT_BB_CUT_AND_RESOLVE( ALL_MAFS, rSPR_branch_and_bound_mult_hlpr, generate_mult_recurse_data, mult_cut_and_cleanup, mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, NULL);
-	    }
+	      MULT_BB_CUT_AND_RESOLVE(ALL_MAFS,rSPR_branch_and_bound_mult_hlpr,generate_mult_recurse_data,mult_cut_and_cleanup,mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, NULL);
+	    }	      
 	    //8.7 cut a2
 	    {
-#ifdef DEBUG
+#ifdef DEBUG	     
 	      cout << "Case 8.7b cut a2" << endl;
 #endif
 	      vector<Node*> to_cut = {T2_a2};
 	      vector<Node*> to_cut_except = {};
-	      MULT_BB_CUT_AND_RESOLVE( ALL_MAFS, rSPR_branch_and_bound_mult_hlpr, generate_mult_recurse_data, mult_cut_and_cleanup, mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, T2_a1);
+	      MULT_BB_CUT_AND_RESOLVE(ALL_MAFS,rSPR_branch_and_bound_mult_hlpr,generate_mult_recurse_data,mult_cut_and_cleanup,mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, T2_a1);
 	    }
 	    //8.7 cut all B1s
 	    {
-#ifdef DEBUG
+#ifdef DEBUG	     
 	      cout << "Case 8.7c cut all B1's" << endl;
 #endif
 	      vector<Node*> to_cut = {};
 	      vector<Node*> to_cut_except = {};
 	      Node* stepper = T2_a1;
-
-	      while(stepper->parent() != arbitrary_lca) {
+		
+	      while(stepper->parent() != arbitrary_lca) { 
 		to_cut_except.push_back(stepper);
 		stepper = stepper->parent();
 	      }
-	      //TODO: use list to push_front or figure out how to add from top to bottom
+	      //TODO: use list to push_front or figure out how to add from top to bottom 
 	      reverse(to_cut_except.begin(), to_cut_except.end());
 
-	      MULT_BB_CUT_AND_RESOLVE( ALL_MAFS, rSPR_branch_and_bound_mult_hlpr, generate_mult_recurse_data, mult_cut_and_cleanup, mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, NULL);
+	      MULT_BB_CUT_AND_RESOLVE(ALL_MAFS,rSPR_branch_and_bound_mult_hlpr,generate_mult_recurse_data,mult_cut_and_cleanup,mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, NULL);		
 	    }
 	    //8.7 cut all B2s
 	    {
@@ -1095,12 +1210,12 @@ namespace rSprBB_Multifurcating {
 	      vector<Node*> to_cut = {};
 	      vector<Node*> to_cut_except = {};
 	      Node* stepper = T2_a2;
-
-	      while(stepper->parent() != arbitrary_lca) {
+		
+	      while(stepper->parent() != arbitrary_lca) { 
 		to_cut_except.push_back(stepper);
 		stepper = stepper->parent();
 	      }
-	      //TODO: use list to push_front or figure out how to add from top to bottom
+	      //TODO: use list to push_front or figure out how to add from top to bottom 
 	      reverse(to_cut_except.begin(), to_cut_except.end());
 	      //8.7 cut all B2's, cut B`2, otherwise r > 2
 	      if(deepest_siblings.size() == 2) {
@@ -1109,10 +1224,10 @@ namespace rSprBB_Multifurcating {
 	      //This exception should be caught by 8.6 case.
 	      /*
 		if (to_cut_except.size() == 0) {
-		cout << "\n\n\nto_cut_except empty in 8.7n. Parent is lca ERROR \n\n\n";
+		cout << "\n\n\nto_cut_except empty in 8.7n. Parent is lca ERROR \n\n\n"; 
 		}*/
 
-	      MULT_BB_CUT_AND_RESOLVE( ALL_MAFS, rSPR_branch_and_bound_mult_hlpr, generate_mult_recurse_data, mult_cut_and_cleanup, mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, T2_a1);
+	      MULT_BB_CUT_AND_RESOLVE(ALL_MAFS,rSPR_branch_and_bound_mult_hlpr,generate_mult_recurse_data,mult_cut_and_cleanup,mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, T2_a1);	
 	    }
 	  }
 
@@ -1132,7 +1247,7 @@ namespace rSprBB_Multifurcating {
 	    /*
 	      7.1 case
 	      Cut a1, pa1, a2 in F2, add 3 to num_cut
-	    */
+	    */	
 	    cut_a1   = true;
 	    cut_b1 = true;
 	    cut_a2   = true;
@@ -1144,11 +1259,11 @@ namespace rSprBB_Multifurcating {
 	      cut_b2 = true;
 	    }
 	  } // size == 2
-
+      
 	  else if (T1_sibling_group->get_children().size() > 2) {
 	    /*
 	      7.3 case
-	      If a2's parent's only sibling is part of the sibling group,
+	      If a2's parent's only sibling is part of the sibling group, 
 	      and a1's parent is a root or has a sibling that is not part of the sibling group
 	      then cut a2 and a2_p otherwise a1 and a1_p
 	    */
@@ -1157,13 +1272,13 @@ namespace rSprBB_Multifurcating {
 	      bool x_2 = false;
 	      bool a2_p_one_sibling = (T2_a2_p != NULL) &&
 		(T2_a2_p->parent() != NULL) &&
-		(T2_a2_p->parent()->get_children().size() == 2);
+		(T2_a2_p->parent()->get_children().size() == 2);	  
 	      if (a2_p_one_sibling) {
 		list<Node *> group = T1_sibling_group->get_children();
 		//get the other one
 		Node *a2_p_sibling = T2_a2_p->parent()->get_children().front() == T2_a2_p ?
 		  T2_a2_p->parent()->get_children().back() :
-		  T2_a2_p->parent()->get_children().front();
+		  T2_a2_p->parent()->get_children().front();	
 		//check if it is part of sibling group
 		bool a2_p_sibling_in_group = descendant_count[a2_p_sibling->get_preorder_number()] == -1;
 		if (a2_p_sibling_in_group) {
@@ -1210,19 +1325,19 @@ namespace rSprBB_Multifurcating {
 	  */
 	  Node *T2_a1_p = T2_a1->parent();
 
-	  if (cut_a1) {
+	  if (cut_a1) {	  
 	    if (T2_a1_p != NULL) {
 #ifdef DEBUG
 	      cout << "Case Cut a1" << endl;
 #endif
 	      vector<Node*> to_cut = {T2_a1};
 	      vector<Node*> to_cut_except = {};
-	      MULT_BB_CUT_AND_RESOLVE( ALL_MAFS, rSPR_branch_and_bound_mult_hlpr, generate_mult_recurse_data, mult_cut_and_cleanup, mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, NULL);
+	      MULT_BB_CUT_AND_RESOLVE(ALL_MAFS,rSPR_branch_and_bound_mult_hlpr,generate_mult_recurse_data,mult_cut_and_cleanup,mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, NULL);
 	    }
 	    //mimics case 8.1, should add rho
 	    else if (T2_a1 == T2->get_component(0) && arbitrary_lca == NULL) {
 	      if (!T1->contains_rho()) {
-		(T1, T2, k, best_k, sibling_groups,singletons,AFs,num_ties,T2_a1, NULL);
+		MULT_RHO_CUT_AND_RESOLVE(generate_mult_recurse_data,rSPR_branch_and_bound_mult_hlpr,T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,T2_a1, NULL);
 	      }
 	    }
 	  }
@@ -1233,7 +1348,7 @@ namespace rSprBB_Multifurcating {
 #endif
 	      vector<Node*> to_cut = {};
 	      vector<Node*> to_cut_except = {T2_a1};
-	      MULT_BB_CUT_AND_RESOLVE( ALL_MAFS, rSPR_branch_and_bound_mult_hlpr, generate_mult_recurse_data, mult_cut_and_cleanup, mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, NULL);
+	      MULT_BB_CUT_AND_RESOLVE(ALL_MAFS,rSPR_branch_and_bound_mult_hlpr,generate_mult_recurse_data,mult_cut_and_cleanup,mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, NULL);
 	    }
 	  }
 	  Node *T2_a2_p = T2_a2->parent();
@@ -1244,12 +1359,12 @@ namespace rSprBB_Multifurcating {
 	    if (T2_a2_p != NULL) {
 	      vector<Node*> to_cut = {T2_a2};
 	      vector<Node*> to_cut_except = {};
-	      MULT_BB_CUT_AND_RESOLVE( ALL_MAFS, rSPR_branch_and_bound_mult_hlpr, generate_mult_recurse_data, mult_cut_and_cleanup, mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, NULL);
+	      MULT_BB_CUT_AND_RESOLVE(ALL_MAFS,rSPR_branch_and_bound_mult_hlpr,generate_mult_recurse_data,mult_cut_and_cleanup,mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, NULL);
 	    }
 	    else if (T2_a2 == T2->get_component(0) && arbitrary_lca == NULL) {
-
+	      
 	      if (!T1->contains_rho()) {
-		MULT_RHO_CUT_AND_RESOLVE(generate_mult_recurse_data, rSPR_branch_and_bound_mult_hlpr, T1, T2, k, best_k, sibling_groups,singletons,AFs,num_ties,T2_a1, NULL);
+		MULT_RHO_CUT_AND_RESOLVE(generate_mult_recurse_data,rSPR_branch_and_bound_mult_hlpr,T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,T2_a2, NULL);
 	      }
 	    }
 
@@ -1261,7 +1376,7 @@ namespace rSprBB_Multifurcating {
 #endif
 	      vector<Node*> to_cut = {};
 	      vector<Node*> to_cut_except = {T2_a2};
-	      MULT_BB_CUT_AND_RESOLVE( ALL_MAFS, rSPR_branch_and_bound_mult_hlpr, generate_mult_recurse_data, mult_cut_and_cleanup, mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, NULL);
+	      MULT_BB_CUT_AND_RESOLVE(ALL_MAFS,rSPR_branch_and_bound_mult_hlpr,generate_mult_recurse_data,mult_cut_and_cleanup,mult_cut_all_except_and_cleanup, T1, T2, k, best_k, sibling_groups, singletons, AFs, num_ties,to_cut, to_cut_except, NULL);
 	    }
 	  }
 	}
@@ -1297,6 +1412,107 @@ namespace rSprBB_Multifurcating {
   return k;
 }
 
+
+
+	
+
+	__attribute__((always_inline)) inline int rSPR_branch_and_bound_mult_range_Inline(
+	bool &LEAF_REDUCTION,
+
+	void (*reduction_leaf_mult)(Forest *T1, Forest* T2),
+	int (*rSPR_branch_and_bound_mult)(Forest *T1, Forest *T2, int start_k),
+
+	Forest *T1, Forest *T2, int start_k, int end_k){
+		int exact_spr = -1;
+		int k;
+		for (k = start_k; k <= end_k; k++) {
+			Forest *F1 = new Forest(T1);
+			Forest *F2 = new Forest(T2);
+			if (!sync_twins(F1,F2)) {
+				exact_spr = 0;
+				continue;
+			}
+			if (LEAF_REDUCTION) {
+				reduction_leaf_mult(F1, F2);
+			}
+#ifdef DEBUG
+			cout << "Trying K = " << k << endl << "------------------" << endl;
+#else
+			cout << k << " " << endl;
+#endif
+			exact_spr = rSPR_branch_and_bound_mult(F1, F2, k);
+#ifdef DEBUG
+			cout << "------------------" << endl;
+			cout << "Finished K = " << k << " return value : " << exact_spr << endl;
+#endif
+			if (exact_spr >= 0) {
+				F1->swap(T1);
+				F2->swap(T2);
+			}
+			delete F1;
+			delete F2;
+
+			if (exact_spr >= 0) {
+				break;
+			}
+		}
+#ifdef DEBUG_CASE_COUNTER
+		print_mult_case_count();
+#endif
+		if (k > end_k) {
+			k = -1;
+		}
+		return k;
+	}
+
+
+	__attribute__((always_inline)) inline int rSPR_branch_and_bound_mult_Inline(
+	bool &ALL_MAFS,
+	int (*rSPR_branch_and_bound_mult_hlpr)(Forest *T1, Forest *T2, int k, list<Node*> *sibling_groups, list<Node*> *singletons, Node *protected_node, list<pair<Forest,Forest>> *AFs, int* num_ties),
+
+
+	Forest *T1, Forest *T2, int k){
+
+		if (!sync_twins(T1,T2)) {
+			return 0;
+		}
+		T2->max_preorder = T2->components[0]->get_max_preorder_number(0);//preorder_number(0);
+		list<Node *> *sibling_groups = T1->find_sibling_groups();
+		//sibling_groups->push_front(sibling_groups->back());
+		//sibling_groups->pop_back();
+		list<Node *> singletons     = T1->find_singletons();
+
+		list<pair<Forest,Forest>> AFs = list<pair<Forest,Forest>>();
+		//list<Node *> protected_stack = list<Node*>();
+		int num_ties = 2;
+		int final_k = rSPR_branch_and_bound_mult_hlpr(T1, T2, k, sibling_groups, &singletons, NULL, &AFs, &num_ties);
+
+		//print AFs
+		if (!AFs.empty() && final_k > -1) {
+			if (ALL_MAFS) {
+				cout << endl << endl << "FOUND ANSWER" << endl;
+				// TODO: this is a cheap hack
+				for (list<pair<Forest,Forest> >::iterator x = AFs.begin(); x != AFs.end(); x++) {
+					cout << "\tT1: ";
+					x->first.print_components();
+					cout << "\tT2: ";
+					x->second.print_components();
+				}
+			}
+			AFs.front().first.swap(T1);
+			AFs.front().second.swap(T2);
+			sync_twins(T1,T2);
+
+		}
+
+
+		delete sibling_groups;
+		if (final_k >= 0)
+			return k - final_k;
+		else
+			return final_k;
+
+	}
 
 
 }
