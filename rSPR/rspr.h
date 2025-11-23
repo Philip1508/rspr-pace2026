@@ -61,6 +61,7 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 #include "../DataStructures/ClusterInstance.h"
 #include "../DataStructures/SiblingPair.h"
 #include "../DataStructures/UndoMachine.h"
+#include "../DataStructures/ProblemSolution.h"
 
 #include "Utility/rSprUtility.h"
 #include "Algorithm/Binary/rSprAlgorithm3Approx.h"
@@ -264,18 +265,7 @@ bool SHOW_CLUSTERS = false;
 
 
 
-class ProblemSolution {
-public:
-string T1;
-string T2;
-int k;
 
-ProblemSolution(Forest *t1, Forest *t2, int new_k) {
-	T1 = t1->str();
-	T2 = t2->str();
-	k = new_k;
-}
-	};
 
 	map<string, ProblemSolution> memoized_clusters = map<string, ProblemSolution>();
 
@@ -289,6 +279,7 @@ ProblemSolution(Forest *t1, Forest *t2, int new_k) {
  * NOTE: destructive. The computed forests replace T1 and T2.
  * T1 and T2 can be  multifurcating forests.
  */
+// Boilerplate Call
 int rSPR_worse_3_mult_approx(Forest *T1, Forest *T2) {
 	return rSPR_worse_3_mult_approx(T1, T2, true);
 }
@@ -1619,7 +1610,7 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 		MULT_RHO_CUT_AND_RESOLVE(T2_a2, NULL);
 	      }
 	    }
-	  
+
 	  }
 	  //step 8.2
 	  else if (all_but_ar_s1 &&
@@ -1628,7 +1619,7 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 	      recurse on cut all B's except shallowest
 	      for each sibling except for shallowest,
 	      cut all other B's protect ai
-		           
+
 	    */
 	    //8.2 B's
 	    {
@@ -1700,7 +1691,7 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 	      }
 
 	  }
-	  
+
 
 	  //step 8.3
 	  else if (T1_sibling_group->get_children().size() == 2 &&
@@ -1739,7 +1730,7 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 	      vector<Node*> to_cut = {};
 	      vector<Node*> to_cut_except = {};
 	      Node* stepper = T2_a1;
-		
+
 	      while(stepper->parent() != arbitrary_lca) { //no need to check for null! we know theres a path
 		to_cut_except.push_back(stepper);
 		stepper = stepper->parent();
@@ -1755,10 +1746,10 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 		the node, since contraction is implemented by cutting the parent, then giving
 		the child to the parent
 	      */
-	      //TODO: use list to push_front or figure out how to add from top to bottom 
+	      //TODO: use list to push_front or figure out how to add from top to bottom
 	      reverse(to_cut_except.begin(), to_cut_except.end());
 	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
-	    }	      
+	    }
 	  }
 
 	  //step 8.4
@@ -1766,7 +1757,7 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 		   deepest_siblings.size() == 2 &&
 		   s_map[T2_a1] == 1 &&
 		   s_map[T2_a2] == 1) {
-	    /* 
+	    /*
 	       recurse on cut a1 and a2 no prot
 	       cut b1 and b2 no prot
 	       cut all except b1 off of lca, b1
@@ -1828,7 +1819,7 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 	    //If pl_has_non_aj_child then the if will evaluate to true later on anyways
 	    if (!pl_has_non_aj_child) {
 	      if (pl != NULL) {
-		Node* gpl = pl->parent();		    		    
+		Node* gpl = pl->parent();
 		if (gpl != NULL) {
 		  for (auto i = gpl->get_children().begin(); i != gpl->get_children().end(); i++) {
 		    if (*i != pl && descendant_count[(*i)->get_preorder_number()] != -1) {
@@ -1850,7 +1841,7 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 #endif
 		vector<Node*> to_cut = {T2_a1};
 		vector<Node*> to_cut_except = {};
-		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, T2_a2);	
+		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, T2_a2);
 	      }
 	      //8.4 Cut a2 prot a1
 	      {
@@ -1859,7 +1850,7 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 #endif
 		vector<Node*> to_cut = {T2_a2};
 		vector<Node*> to_cut_except = {};
-		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, T2_a1);	
+		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, T2_a1);
 	      }
 
 	    }
@@ -1882,7 +1873,7 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 #endif
 #ifdef DEBUG_CASE_COUNTER
 	    case_counter.case_85++;
-#endif	    
+#endif
 	      vector<Node*> to_cut = {};
 	      vector<Node*> to_cut_except = {};
 	      for (int i = 0; i < deepest_siblings.size(); i++) {
@@ -1903,7 +1894,7 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
 	    }
 	    //8.5 for each ai cut all a's except ai
-	    {	      
+	    {
 	      for (int i = 0; i < deepest_siblings.size(); i++) {
 #ifdef DEBUG
 		cout << "Case 8.5c cut all a1-ar except ai" << endl;
@@ -1919,7 +1910,7 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 	      }
 	    }
 	    //8.5 for each ai cut all b's except ai's
-	    {	      
+	    {
 	      for (int i = 0; i < deepest_siblings.size(); i++) {
 #ifdef DEBUG
 		cout << "Case 8.5d cut all B1-Br except Bi" << endl;
@@ -1953,7 +1944,7 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 	    //if (T2_a1->parent() != NULL) {
 	    //8.6 cut a1
 	    {
-#ifdef DEBUG	     
+#ifdef DEBUG
 	      cout << "Case 8.6a cut a1" << endl;
 #endif
 #ifdef DEBUG_CASE_COUNTER
@@ -1965,31 +1956,31 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 	    }
 	    //8.6 cut all B1s
 	    {
-#ifdef DEBUG	     
+#ifdef DEBUG
 	      cout << "Case 8.6b cut all B1's" << endl;
 #endif
 	      vector<Node*> to_cut = {};
 	      vector<Node*> to_cut_except = {};
 	      Node* stepper = T2_a1;
-		
-	      while(stepper->parent() != arbitrary_lca) { 
+
+	      while(stepper->parent() != arbitrary_lca) {
 		to_cut_except.push_back(stepper);
 		stepper = stepper->parent();
 	      }
-	      //TODO: use list to push_front or figure out how to add from top to bottom 
+	      //TODO: use list to push_front or figure out how to add from top to bottom
 	      reverse(to_cut_except.begin(), to_cut_except.end());
 
 	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
 	    }
 	    //8.6 cut B2
 	    {
-#ifdef DEBUG	     
+#ifdef DEBUG
 	      cout << "Case 8.6c cut B2" << endl;
 #endif
 	      vector<Node*> to_cut = {};
 	      vector<Node*> to_cut_except = {T2_a2};
 	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
-	    }	      
+	    }
 	  }
 
 	  //step 8.7
@@ -1999,11 +1990,11 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 	      recurse on cut a1 no prot,
 	      cut a2 prot a1,
 	      cut all B1's leading up to LCA no prot,
-			   
+
 	    */
 	    //8.7 cut a1
 	    {
-#ifdef DEBUG	     
+#ifdef DEBUG
 	      cout << "Case 8.7a cut a1" << endl;
 #endif
 #ifdef DEBUG_CASE_COUNTER
@@ -2012,10 +2003,10 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 	      vector<Node*> to_cut = {T2_a1};
 	      vector<Node*> to_cut_except = {};
 	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
-	    }	      
+	    }
 	    //8.7 cut a2
 	    {
-#ifdef DEBUG	     
+#ifdef DEBUG
 	      cout << "Case 8.7b cut a2" << endl;
 #endif
 	      vector<Node*> to_cut = {T2_a2};
@@ -2024,21 +2015,21 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 	    }
 	    //8.7 cut all B1s
 	    {
-#ifdef DEBUG	     
+#ifdef DEBUG
 	      cout << "Case 8.7c cut all B1's" << endl;
 #endif
 	      vector<Node*> to_cut = {};
 	      vector<Node*> to_cut_except = {};
 	      Node* stepper = T2_a1;
-		
-	      while(stepper->parent() != arbitrary_lca) { 
+
+	      while(stepper->parent() != arbitrary_lca) {
 		to_cut_except.push_back(stepper);
 		stepper = stepper->parent();
 	      }
-	      //TODO: use list to push_front or figure out how to add from top to bottom 
+	      //TODO: use list to push_front or figure out how to add from top to bottom
 	      reverse(to_cut_except.begin(), to_cut_except.end());
 
-	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);		
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
 	    }
 	    //8.7 cut all B2s
 	    {
@@ -2055,12 +2046,12 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 	      vector<Node*> to_cut = {};
 	      vector<Node*> to_cut_except = {};
 	      Node* stepper = T2_a2;
-		
-	      while(stepper->parent() != arbitrary_lca) { 
+
+	      while(stepper->parent() != arbitrary_lca) {
 		to_cut_except.push_back(stepper);
 		stepper = stepper->parent();
 	      }
-	      //TODO: use list to push_front or figure out how to add from top to bottom 
+	      //TODO: use list to push_front or figure out how to add from top to bottom
 	      reverse(to_cut_except.begin(), to_cut_except.end());
 	      //8.7 cut all B2's, cut B`2, otherwise r > 2
 	      if(deepest_siblings.size() == 2) {
@@ -2069,10 +2060,10 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 	      //This exception should be caught by 8.6 case.
 	      /*
 		if (to_cut_except.size() == 0) {
-		cout << "\n\n\nto_cut_except empty in 8.7n. Parent is lca ERROR \n\n\n"; 
+		cout << "\n\n\nto_cut_except empty in 8.7n. Parent is lca ERROR \n\n\n";
 		}*/
 
-	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, T2_a1);	
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, T2_a1);
 	    }
 	  }
 
@@ -2092,7 +2083,7 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 	    /*
 	      7.1 case
 	      Cut a1, pa1, a2 in F2, add 3 to num_cut
-	    */	
+	    */
 	    cut_a1   = true;
 	    cut_b1 = true;
 	    cut_a2   = true;
@@ -2104,11 +2095,11 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 	      cut_b2 = true;
 	    }
 	  } // size == 2
-      
+
 	  else if (T1_sibling_group->get_children().size() > 2) {
 	    /*
 	      7.3 case
-	      If a2's parent's only sibling is part of the sibling group, 
+	      If a2's parent's only sibling is part of the sibling group,
 	      and a1's parent is a root or has a sibling that is not part of the sibling group
 	      then cut a2 and a2_p otherwise a1 and a1_p
 	    */
@@ -2117,13 +2108,13 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 	      bool x_2 = false;
 	      bool a2_p_one_sibling = (T2_a2_p != NULL) &&
 		(T2_a2_p->parent() != NULL) &&
-		(T2_a2_p->parent()->get_children().size() == 2);	  
+		(T2_a2_p->parent()->get_children().size() == 2);
 	      if (a2_p_one_sibling) {
 		list<Node *> group = T1_sibling_group->get_children();
 		//get the other one
 		Node *a2_p_sibling = T2_a2_p->parent()->get_children().front() == T2_a2_p ?
 		  T2_a2_p->parent()->get_children().back() :
-		  T2_a2_p->parent()->get_children().front();	
+		  T2_a2_p->parent()->get_children().front();
 		//check if it is part of sibling group
 		bool a2_p_sibling_in_group = descendant_count[a2_p_sibling->get_preorder_number()] == -1;
 		if (a2_p_sibling_in_group) {
@@ -2170,7 +2161,7 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 	  */
 	  Node *T2_a1_p = T2_a1->parent();
 
-	  if (cut_a1) {	  
+	  if (cut_a1) {
 	    if (T2_a1_p != NULL) {
 #ifdef DEBUG
 	      cout << "Case Cut a1" << endl;
@@ -2207,7 +2198,7 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
 	    }
 	    else if (T2_a2 == T2->get_component(0) && arbitrary_lca == NULL) {
-	      
+
 	      if (!T1->contains_rho()) {
 		MULT_RHO_CUT_AND_RESOLVE(T2_a2, NULL);
 	      }
@@ -3470,79 +3461,23 @@ if (save_forests) {
 return num_cut;
 }
 
-
+// Boilerplate Call!
 int rSPR_branch_and_bound(Forest *T1, Forest *T2) {
 	return rSPR_branch_and_bound_range(T1, T2, MAX_SPR);
 }
 
-
+// Inlined Away to rSprAlgorithmBB.h
 int rSPR_branch_and_bound_range(Forest *T1, Forest *T2, int end_k) {
-	string problem_key;
-	map<string,ProblemSolution>::iterator i;
-
-	if (MEMOIZE) {
-problem_key = T1->str() + ":" + T2->str();
-i = memoized_clusters.find(problem_key);
-if (i != memoized_clusters.end()) {
-	//cout << "already solved: " << endl;
-	//cout << problem_key << endl;
-	//cout << i->second.T2 << endl;
-	//cout << "start" << endl;
-	Forest *new_T1 = build_finished_forest(i->second.T1);
-	//cout << "middle" << endl;
-	Forest *new_T2 = build_finished_forest(i->second.T2);
-	//cout << "end" << endl;
-	T1->swap(new_T1);
-	T2->swap(new_T2);
-	sync_twins(T1, T2);
-	delete new_T1;
-	delete new_T2;
-	return i->second.k;
+	return rSprBB::rSPR_branch_and_bound_range_Inline(MEMOIZE, memoized_clusters, &rSPR_worse_3_approx, &rSPR_branch_and_bound_range , T1, T2, end_k);
 }
-	}
-	Forest F1 = Forest(T1);
-	Forest F2 = Forest(T2);
-	int approx_spr = rSPR_worse_3_approx(&F1, &F2);
-	int min_spr = approx_spr / 3;
-	int exact_spr = rSPR_branch_and_bound_range(T1, T2, min_spr, end_k);
-	if (MEMOIZE && exact_spr >= 0 && i == memoized_clusters.end()) {
-//string solution_key = T1->str() + ":" + T2->str();
-memoized_clusters.insert(make_pair(problem_key,
-		ProblemSolution(T1,T2,exact_spr)));
-	}
 
-	return exact_spr;
-}
-	
+// Inlined Away to rSprAlgorithmBB.h
 int rSPR_branch_and_bound_range(Forest *T1, Forest *T2, int start_k,
 int end_k) {
-	int exact_spr = -1;
-	bool in_main = MAIN_CALL;
-	MAIN_CALL = false;
-	int k;
-	for(k = start_k; k <= end_k; k++) {
-if (in_main) {
-	cout << " " << k;
-	cout.flush();
-}
-//Forest F1 = Forest(T1);
-//Forest F2 = Forest(T2);
-//exact_spr = rSPR_branch_and_bound(&F1, &F2, k);
-exact_spr = rSPR_branch_and_bound(T1,T2, k);
-//if (exact_spr >= 0 || k == end_k) {
-if (exact_spr >= 0) {
-//			F1.swap(T1);
-//			F2.swap(T2);
-	break;
-}
-	}
-	if (in_main)
-cout << endl;
-	if (k > end_k)
-k = -1;
-	return k;
+	return rSprBB::rSPR_branch_and_bound_range_Inline(MAIN_CALL, &rSPR_branch_and_bound, T1, T2, start_k, end_k);
 }
 
+// Boilerplate Call!
 int rSPR_branch_and_bound(Forest *T1, Forest *T2, int k) {
 	return rSPR_branch_and_bound(T1, T2, k, NULL, NULL);
 }
@@ -3619,6 +3554,8 @@ final_k = k - final_k;
 	return final_k;
 }
 
+// These seem to belong solely to Binary BB
+
 void add_sibling_pair(set<SiblingPair> *sibling_pairs, Node *a, Node *c, UndoMachine *um) {
 	SiblingPair sp = SiblingPair(a,c);
 	pair< set<SiblingPair>::iterator, bool> ins = 
@@ -3646,6 +3583,7 @@ SiblingPair pop_sibling_pair(set<SiblingPair>::iterator s, set<SiblingPair> *sib
 	return spair;
 }
 
+// Boilerplate call, but Inlined so it's dangerous?
 inline int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 set<SiblingPair> *sibling_pairs, list<Node *> *singletons,
 bool cut_b_only, list<pair<Forest,Forest> > *AFs,
@@ -3654,7 +3592,7 @@ list<Node *> *protected_stack, int *num_ties) {
 			singletons, cut_b_only, AFs, protected_stack, num_ties, NULL, NULL);
 }
 
-// rSPR_branch_and_bound recursive helper function
+// rSPR_branch_and_bound recursive helper function - Inlined Away to rSprAlgorithmBB.h
 int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 set<SiblingPair> *sibling_pairs, list<Node *> *singletons,
 bool cut_b_only, list<pair<Forest,Forest> > *AFs,
@@ -3824,7 +3762,7 @@ void reduction_leaf_mult(Forest *T1, Forest* T2) {
   delete sibling_groups;
 }
   
-// T1 and T2 are assumed to already be synced
+// // Boilerplate Call! - T1 and T2 are assumed to already be synced
 void reduction_leaf(Forest *T1, Forest *T2) {
 	reduction_leaf(T1, T2, NULL);
 }
@@ -3882,7 +3820,7 @@ void reduction_leaf(Forest *T1, Forest *T2, UndoMachine *um) {
 	 T2_node_end
 */
 
-
+// Boilerplate Call!
 int rSPR_total_distance(Node *T1, vector<Node *> &gene_trees) {
 	return rSPR_total_distance(T1, gene_trees, NULL);
 }
@@ -3942,14 +3880,17 @@ int rSPR_total_distance(Node *T1, vector<Node *> &gene_trees,
 	return total;
 }
 
+// Boilerplate Call!
 void rSPR_pairwise_distance(Node *T1, vector<Node *> &gene_trees) {
 	rSPR_pairwise_distance(T1, gene_trees, 0, gene_trees.size());
 }
 
+// Boilerplate Call!
 void rSPR_pairwise_distance(Node *T1, vector<Node *> &gene_trees, bool APPROX) {
 	rSPR_pairwise_distance(T1, gene_trees, 0, gene_trees.size(), APPROX);
 }
 
+// Boilerplate Call!
 void rSPR_pairwise_distance(Node *T1, vector<Node *> &gene_trees, int start, int end) {
 	rSPR_pairwise_distance(T1, gene_trees, start, end, false);
 }
@@ -3979,7 +3920,7 @@ void rSPR_pairwise_distance(Node *T1, vector<Node *> &gene_trees, int start, int
 	cout << "\n";
 }
 
-
+// Boilerplate Call!
 void rSPR_pairwise_distance(Node *T1, vector<Node *> &gene_trees, int max_spr) {
 	rSPR_pairwise_distance(T1, gene_trees, max_spr, 0, (int)gene_trees.size());
 }
@@ -4003,14 +3944,17 @@ void rSPR_pairwise_distance(Node *T1, vector<Node *> &gene_trees, int max_spr, i
 	cout << "\n";
 }
 
+// Boilerplate Call!
 void rSPR_pairwise_distance_unrooted(Node *T1, vector<Node *> &gene_trees) {
 	rSPR_pairwise_distance_unrooted(T1, gene_trees, 0, gene_trees.size());
 }
 
+// Boilerplate Call!
 void rSPR_pairwise_distance_unrooted(Node *T1, vector<Node *> &gene_trees, bool approx) {
 	rSPR_pairwise_distance_unrooted(T1, gene_trees, 0, gene_trees.size(), approx);
 }
 
+// Boilerplate Call!
 void rSPR_pairwise_distance_unrooted(Node *T1, vector<Node *> &gene_trees, int start, int end) {
 	rSPR_pairwise_distance_unrooted(T1, gene_trees, 0, gene_trees.size(), false);
 }
@@ -4057,6 +4001,7 @@ void rSPR_pairwise_distance_unrooted(Node *T1, vector<Node *> &gene_trees, int s
 	cout << "\n";
 }
 
+// Boilerplate Call!
 void rSPR_pairwise_distance_unrooted(Node *T1, vector<Node *> &gene_trees, int max_spr) {
 	rSPR_pairwise_distance_unrooted(T1, gene_trees, max_spr, 0, (int)gene_trees.size());
 }
@@ -4191,40 +4136,10 @@ void rf_pairwise_distance(Node *T1, vector<Node *> &gene_trees, int start, int e
 void rf_pairwise_distance_unrooted(Node *T1, vector<Node *> &gene_trees) {
 	rf_pairwise_distance_unrooted(T1, gene_trees, 0, gene_trees.size());
 }
-
+// Inlined Away to rSPRUtility.h
 void rf_pairwise_distance_unrooted(Node *T1, vector<Node *> &gene_trees, int start, int end) {
-	MAIN_CALL = false;
-	T1->preorder_number();
-	vector<int> distances = vector<int>(end-start);
-	#pragma omp parallel for shared(distances) firstprivate(PREFER_RHO)
-	for(int i = start; i < end; i++) {
-		int best_k = INT_MAX;
-		Node T2_copy = Node(*(gene_trees[i]));
-		vector<Node *> descendants = 
-				T2_copy.find_descendants();
-		for(int j = 0; j < descendants.size(); j++) {
-			T2_copy.reroot(descendants[j]);
-			T2_copy.set_depth(0);
-			T2_copy.fix_depths();
-			T2_copy.preorder_number();
-	//				cout << i << "," << j << endl;
-	//				cout << T1->str_subtree() << endl;
-	//				cout << gene_trees[i]->str_subtree() << endl;
-			int k = rf_distance(T1, &T2_copy);
-			if (k < best_k) {
-				best_k = k;
-			}
-		}
-		distances[i-start] = best_k;
-	}
-
-	cout << distances[0];
-	for(int i = 1; i < end-start; i++) {
-		cout << "," << distances[i];
-	}
-	cout << "\n";
+	return rSprUtility::rf_pairwise_distance_unrooted_Inline(MAIN_CALL, &rf_distance, T1, gene_trees, start, end);
 }
-
 int rSPR_total_distance(Node *T1, vector<Node *> &gene_trees, int threshold) {
 	int total = 0;
 	MAIN_CALL = false;
@@ -4268,10 +4183,12 @@ int rSPR_total_approx_distance(Forest *T1, vector<Node *> &gene_trees) {
 	return total;
 }
 
+// Boilerplate Call!
 int rSPR_total_distance_unrooted(Node *T1, vector<Node *> &gene_trees) {
 	return rSPR_total_distance_unrooted(T1, gene_trees, INT_MAX, NULL);
 }
 
+// Boilerplate Call!
 int rSPR_total_distance_unrooted(Node *T1, vector<Node *> &gene_trees,
 		int threshold) {
 	return rSPR_total_distance_unrooted(T1, gene_trees, threshold, NULL);
@@ -4497,6 +4414,7 @@ int rSPR_total_approx_distance_unrooted(Node *T1, vector<Node *> &gene_trees) {
 	return total;
 }
 
+// Boilerplate Call!
 int rSPR_total_approx_distance(Node *T1, vector<Node *> &gene_trees) {
 	return rSPR_total_approx_distance(T1, gene_trees, INT_MAX);
 }

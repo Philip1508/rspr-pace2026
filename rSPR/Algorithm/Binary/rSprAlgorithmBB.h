@@ -28,9 +28,88 @@ namespace rSprBB {
 
 
 
+    __attribute__((always_inline)) inline int rSPR_branch_and_bound_range_Inline(
+            bool &MEMOIZE,
+            map<string, ProblemSolution> &memoized_clusters,
+            int (*rSPR_worse_3_approx)(Forest *T1, Forest *T2),
+            int (*rSPR_branch_and_bound_range)(Forest *T1, Forest *T2, int start_k,
+                                            int end_k),
+
+            Forest *T1, Forest *T2, int end_k) {
 
 
-// rSPR_branch_and_bound recursive helper function
+
+        string problem_key;
+        map<string,ProblemSolution>::iterator i;
+
+        if (MEMOIZE) {
+            problem_key = T1->str() + ":" + T2->str();
+            i = memoized_clusters.find(problem_key);
+            if (i != memoized_clusters.end()) {
+                //cout << "already solved: " << endl;
+                //cout << problem_key << endl;
+                //cout << i->second.T2 << endl;
+                //cout << "start" << endl;
+                Forest *new_T1 = build_finished_forest(i->second.T1);
+                //cout << "middle" << endl;
+                Forest *new_T2 = build_finished_forest(i->second.T2);
+                //cout << "end" << endl;
+                T1->swap(new_T1);
+                T2->swap(new_T2);
+                sync_twins(T1, T2);
+                delete new_T1;
+                delete new_T2;
+                return i->second.k;
+            }
+        }
+        Forest F1 = Forest(T1);
+        Forest F2 = Forest(T2);
+        int approx_spr = rSPR_worse_3_approx(&F1, &F2);
+        int min_spr = approx_spr / 3;
+        int exact_spr = rSPR_branch_and_bound_range(T1, T2, min_spr, end_k);
+        if (MEMOIZE && exact_spr >= 0 && i == memoized_clusters.end()) {
+//string solution_key = T1->str() + ":" + T2->str();
+            memoized_clusters.insert(make_pair(problem_key,
+                                               ProblemSolution(T1,T2,exact_spr)));
+        }
+
+        return exact_spr;
+    }
+
+    __attribute__((always_inline)) inline int rSPR_branch_and_bound_range_Inline(
+            bool &MAIN_CALL,
+            int (*rSPR_branch_and_bound)(Forest *T1, Forest *T2, int k),
+
+            Forest *T1, Forest *T2, int start_k, int end_k) {
+        int exact_spr = -1;
+        bool in_main = MAIN_CALL;
+        MAIN_CALL = false;
+        int k;
+        for(k = start_k; k <= end_k; k++) {
+            if (in_main) {
+                cout << " " << k;
+                cout.flush();
+            }
+//Forest F1 = Forest(T1);
+//Forest F2 = Forest(T2);
+//exact_spr = rSPR_branch_and_bound(&F1, &F2, k);
+            exact_spr = rSPR_branch_and_bound(T1,T2, k);
+//if (exact_spr >= 0 || k == end_k) {
+            if (exact_spr >= 0) {
+//			F1.swap(T1);
+//			F2.swap(T2);
+                break;
+            }
+        }
+        if (in_main)
+            cout << endl;
+        if (k > end_k)
+            k = -1;
+        return k;
+    }
+
+
+    // rSPR_branch_and_bound recursive helper function
 __attribute__((always_inline)) inline int rSPR_branch_and_bound_hlpr_Inline(
 // SHADOWED ARGUMENTS:
 bool &PREFER_RHO,
