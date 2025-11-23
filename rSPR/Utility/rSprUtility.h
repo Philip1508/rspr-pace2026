@@ -30,6 +30,36 @@ namespace rSprUtility
 
 
 
+	__attribute__((always_inline)) inline void add_sibling_pair_Inline(set<SiblingPair> *sibling_pairs, Node *a, Node *c, UndoMachine *um) {
+		SiblingPair sp = SiblingPair(a,c);
+		pair< set<SiblingPair>::iterator, bool> ins =
+		sibling_pairs->insert(sp);
+		if (ins.second == false) {
+			um->add_event(new RemoveSetSiblingPairs(sibling_pairs, *(ins.first)));
+			sibling_pairs->erase(ins.first);
+			ins = sibling_pairs->insert(sp);
+		}
+		um->add_event(new AddToSetSiblingPairs(sibling_pairs, *(ins.first)));
+	}
+
+	__attribute__((always_inline)) inline SiblingPair pop_sibling_pair_Inline(set<SiblingPair> *sibling_pairs, UndoMachine *um) {
+		set<SiblingPair>::iterator s = sibling_pairs->begin();
+		SiblingPair spair = SiblingPair(*s);
+		um->add_event(new RemoveSetSiblingPairs(sibling_pairs, spair));
+		sibling_pairs->erase(s);
+		return spair;
+	}
+
+	__attribute__((always_inline)) inline SiblingPair pop_sibling_pair_Inline(set<SiblingPair>::iterator s, set<SiblingPair> *sibling_pairs, UndoMachine *um) {
+		SiblingPair spair = SiblingPair(*s);
+		um->add_event(new RemoveSetSiblingPairs(sibling_pairs, spair));
+		sibling_pairs->erase(s);
+		return spair;
+	}
+
+
+
+
 
 	bool chain_match(Node *T1_node, Node *T2_node, Node *T2_node_end) {
 		Node *T1_pendant;
