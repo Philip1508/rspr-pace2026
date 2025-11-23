@@ -1,11 +1,105 @@
 
 
 
+class ProblemSolution {
+public:
+	string T1;
+	string T2;
+	int k;
+
+	ProblemSolution(Forest *t1, Forest *t2, int new_k) {
+		T1 = t1->str();
+		T2 = t2->str();
+		k = new_k;
+	}
+};
+
 
 namespace rSprBB {
 
 
 
+
+
+	__attribute__((always_inline)) inline int rSPR_branch_and_bound_range_Inline(
+		bool &MEMOIZE,
+		map<string, ProblemSolution> &memoized_clusters,
+		int (*rSPR_worse_3_approx)(Forest *T1, Forest *T2),
+		int (*rSPR_branch_and_bound_range)(Forest *T1, Forest *T2, int start_k, int end_k),
+
+
+		// ORIGINAL PARAMETERS
+		Forest *T1, Forest *T2, int end_k) {
+		string problem_key;
+		map<string,ProblemSolution>::iterator i;
+
+		if (MEMOIZE) {
+			problem_key = T1->str() + ":" + T2->str();
+			i = memoized_clusters.find(problem_key);
+			if (i != memoized_clusters.end()) {
+				//cout << "already solved: " << endl;
+				//cout << problem_key << endl;
+				//cout << i->second.T2 << endl;
+				//cout << "start" << endl;
+				Forest *new_T1 = build_finished_forest(i->second.T1);
+				//cout << "middle" << endl;
+				Forest *new_T2 = build_finished_forest(i->second.T2);
+				//cout << "end" << endl;
+				T1->swap(new_T1);
+				T2->swap(new_T2);
+				sync_twins(T1, T2);
+				delete new_T1;
+				delete new_T2;
+				return i->second.k;
+			}
+		}
+		Forest F1 = Forest(T1);
+		Forest F2 = Forest(T2);
+		int approx_spr = rSPR_worse_3_approx(&F1, &F2);
+		int min_spr = approx_spr / 3;
+		int exact_spr = rSPR_branch_and_bound_range(T1, T2, min_spr, end_k);
+		if (MEMOIZE && exact_spr >= 0 && i == memoized_clusters.end()) {
+			//string solution_key = T1->str() + ":" + T2->str();
+			memoized_clusters.insert(make_pair(problem_key,
+					ProblemSolution(T1,T2,exact_spr)));
+		}
+
+		return exact_spr;
+	}
+
+
+	__attribute__((always_inline)) inline int rSPR_branch_and_bound_range_Inline(
+	bool &MAIN_CALL,
+	int (*rSPR_branch_and_bound)(Forest *T1, Forest *T2, int k, map<string, int> *label_map, map<int, string> *reverse_label_map),
+
+	Forest *T1, Forest *T2, int start_k, int end_k) {
+		int exact_spr = -1;
+		bool in_main = MAIN_CALL;
+		MAIN_CALL = false;
+		int k;
+		for(k = start_k; k <= end_k; k++) {
+			if (in_main) {
+				cout << " " << k;
+				cout.flush();
+			}
+			//Forest F1 = Forest(T1);
+			//Forest F2 = Forest(T2);
+			//exact_spr = rSPR_branch_and_bound(&F1, &F2, k);
+			// OLD exact_spr = rSPR_branch_and_bound(T1,T2, k);
+			exact_spr = rSPR_branch_and_bound(T1,T2, k, NULL, NULL);
+			//if (exact_spr >= 0 || k == end_k) {
+			if (exact_spr >= 0) {
+				//			F1.swap(T1);
+				//			F2.swap(T2);
+				break;
+			}
+		}
+		if (in_main)
+			cout << endl;
+		if (k > end_k)
+			k = -1;
+		return k;
+	}
 
 
 // rSPR_branch_and_bound recursive helper function
@@ -2040,6 +2134,88 @@ Node *T1, Node *T2, bool verbose, map<string, int> *label_map, map<int, string> 
 	return total_k;
 }
 
+
+	/* rSPR_branch_and_bound - ZULU
+	 * Calculate a maximum agreement forest and SPR distance
+	 * Uses a branch and bound optimization to not explore paths
+	 * guaranteed to be incorrect based on rspr_3_approx
+	 * RETURN The rSPR distance
+	 * NOTE: destructive. The computed forests replace T1 and T2.
+	 */
+	__attribute__((always_inline)) inline int rSPR_branch_and_bound_Inline(
+		bool &PREORDER_SIBLING_PAIRS,
+		bool &ALL_MAFS,
+		bool &DEEPEST_PROTECTED_ORDER,
+
+		int (*rSPR_branch_and_bound_hlpr)(Forest *T1, Forest *T2, int k,
+		set<SiblingPair> *sibling_pairs, list<Node *> *singletons, bool cut_b_only,
+		list<pair<Forest,Forest> > *AFs, list<Node *> *protected_stack,
+		int *num_ties),
+
+		Forest *T1, Forest *T2, int k,
+		map<string, int> *label_map,
+		map<int, string> *reverse_label_map) {
+	// find sibling pairs of T1
+//	cout << "foo1" << endl;
+	if (!sync_twins(T1, T2))
+return 0;
+	if (PREORDER_SIBLING_PAIRS &&
+			T1->get_component(0)->get_preorder_number() == -1) {
+		T1->get_component(0)->preorder_number();
+		T2->get_component(0)->preorder_number();
+}
+	if (DEEPEST_PROTECTED_ORDER
+			&& T1->get_component(0)->get_edge_pre_start() == -1) {
+		T1->get_component(0)->edge_preorder_interval();
+		T2->get_component(0)->edge_preorder_interval();
+	}
+
+	set<SiblingPair> *sibling_pairs;
+	list<Node *> singletons;
+	list<pair<Forest,Forest> > AFs = list<pair<Forest,Forest> >();
+	sibling_pairs = find_sibling_pairs_set(T1);
+	singletons = T2->find_singletons();
+	list<Node *> protected_stack = list<Node *>();
+	int num_ties = 2;
+
+
+	int final_k =
+rSPR_branch_and_bound_hlpr(T1, T2, k, sibling_pairs, &singletons, false, &AFs, &protected_stack, &num_ties);
+
+//		cout << "foo" << endl;
+	// TODO: this is a cheap hack
+	if (!AFs.empty()) {
+if (ALL_MAFS
+#ifdef DEBUG
+		|| true
+#endif
+		) {
+	cout << endl << endl << "FOUND ANSWERS" << endl;
+	// TODO: this is a cheap hack
+	for (list<pair<Forest,Forest> >::iterator x = AFs.begin(); x != AFs.end(); x++) {
+		if (label_map != NULL && reverse_label_map != NULL) {
+			x->first.numbers_to_labels(reverse_label_map);
+			x->second.numbers_to_labels(reverse_label_map);
+		}
+		cout << "\tT1: ";
+		x->first.print_components();
+		cout << "\tT2: ";
+		x->second.print_components();
+		if (label_map != NULL && reverse_label_map != NULL) {
+			x->first.labels_to_numbers(label_map, reverse_label_map);
+			x->second.labels_to_numbers(label_map, reverse_label_map);
+		}
+	}
+}
+AFs.front().first.swap(T1);
+AFs.front().second.swap(T2);
+sync_twins(T1,T2);
+	}
+	if (final_k >= 0)
+final_k = k - final_k;
+	delete sibling_pairs;
+	return final_k;
+}
 
 
 
