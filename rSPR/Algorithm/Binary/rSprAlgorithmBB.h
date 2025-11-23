@@ -1671,7 +1671,6 @@ int (*rSPR_branch_and_bound_hlpr)(Forest *T1, Forest *T2, int k,
 		int *num_ties),
 
 
-
 // ORIGINAL ARGUMENTS
 Node *T1, Node *T2, bool verbose, map<string, int> *label_map, map<int, string> *reverse_label_map, int min_k, int max_k, Forest **out_F1, Forest **out_F2) {
 	bool do_cluster = true;

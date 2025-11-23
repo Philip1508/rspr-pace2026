@@ -3461,6 +3461,9 @@ if (save_forests) {
 return num_cut;
 }
 
+/*******************************************************************************
+	It seems that rSPR BB Binary begins here!
+*******************************************************************************/
 // Boilerplate Call!
 int rSPR_branch_and_bound(Forest *T1, Forest *T2) {
 	return rSPR_branch_and_bound_range(T1, T2, MAX_SPR);
