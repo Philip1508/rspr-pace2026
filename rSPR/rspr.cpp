@@ -817,7 +817,7 @@ int main(int argc, char *argv[]) {
 	map<int, string> reverse_label_map = map<int, string>();
 
 	// set random seed
-	srand(unsigned(1));
+	srand(unsigned(time(0)));
 
 	// Normal operation
 	if (!UNROOTED && !UNROOTED_MIN_APPROX && !TOTAL && !PAIRWISE && !SEQUENCE) {
