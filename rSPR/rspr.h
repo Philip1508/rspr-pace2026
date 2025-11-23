@@ -63,12 +63,9 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 #include "../DataStructures/UndoMachine.h"
 
 #include "Utility/rSprUtility.h"
-#include "Algorithm/Algorithm3Approx/rSprAlgorithm3Approx.h"
-#include "Algorithm/Algorithm3Approx/rSprAlgorithm3Approx_Multifurcating.h"
-#include "Algorithm/AlgorithmBB/rSprAlgorithmBB.h"
-#include "Algorithm/AlgorithmBB/rSprAlgorithmBB_Multifurcating.h"
-
-#include "Algorithm/SuperTreeExtension/rsprsupertree.h"
+#include "Algorithm/rSprAlgorithm3Approx.h"
+#include "Algorithm/rSprAlgorithmBB.h"
+#include "Algorithm/rSprAlgorithmBB_Multifurcating.h"
 using namespace std;
 
 
@@ -824,54 +821,217 @@ void print_mult_case_count() {
   
 #endif
 
-// END OF 3 APPROX!
-
 // BOILERPLATE CALL
 int rSPR_branch_and_bound_mult_range(Forest *T1, Forest *T2, int start_k){
   return rSPR_branch_and_bound_mult_range(T1, T2, start_k, MAX_SPR);
 }
 
-// MULTIFURCATING BB - INLINED AWAY TO rSPrAlgorithmBB_Multifurcating.h!
 
 int rSPR_branch_and_bound_mult_range(Forest *T1, Forest *T2, int start_k, int end_k){
-  return rSprBB_Multifurcating::rSPR_branch_and_bound_mult_range_Inline(
-  	LEAF_REDUCTION,
-  	&reduction_leaf_mult,
-  	&rSPR_branch_and_bound_mult,
-  	T1, T2, start_k, end_k
-  	);
-}
+  int exact_spr = -1;
+  int k;
+  for (k = start_k; k <= end_k; k++) {
+    Forest *F1 = new Forest(T1);
+    Forest *F2 = new Forest(T2);
+    if (!sync_twins(F1,F2)) {
+      exact_spr = 0;
+      continue;
+    }
+    if (LEAF_REDUCTION) {
+      reduction_leaf_mult(F1, F2);
+    }
+    #ifdef DEBUG
+    cout << "Trying K = " << k << endl << "------------------" << endl;
+    #else
+    cout << k << " " << endl;
+    #endif
+    exact_spr = rSPR_branch_and_bound_mult(F1, F2, k);
+    #ifdef DEBUG
+    cout << "------------------" << endl;
+    cout << "Finished K = " << k << " return value : " << exact_spr << endl;   
+    #endif
+    if (exact_spr >= 0) {
+      F1->swap(T1);
+      F2->swap(T2);
+    }
+    delete F1;
+    delete F2;
 
-// MULTIFURCATING BB - INLINED AWAY TO rSPrAlgorithmBB_Multifurcating.h!
+    if (exact_spr >= 0) {    
+      break;
+    }
+  }
+  #ifdef DEBUG_CASE_COUNTER
+  print_mult_case_count();
+  #endif
+  if (k > end_k) {
+    k = -1;
+  }
+  return k;
+}
 int rSPR_branch_and_bound_mult(Forest *T1, Forest *T2, int k){
 
-  return rSprBB_Multifurcating::rSPR_branch_and_bound_mult_Inline(
-  	ALL_MAFS,
-	&rSPR_branch_and_bound_mult_hlpr,
-  T1,T2,k);
+  if (!sync_twins(T1,T2)) {
+    return 0;      
+  }
+  T2->max_preorder = T2->components[0]->get_max_preorder_number(0);//preorder_number(0);          
+  list<Node *> *sibling_groups = T1->find_sibling_groups();
+  //sibling_groups->push_front(sibling_groups->back());
+  //sibling_groups->pop_back();
+  list<Node *> singletons     = T1->find_singletons();
+  
+  list<pair<Forest,Forest>> AFs = list<pair<Forest,Forest>>();
+  //list<Node *> protected_stack = list<Node*>();
+  int num_ties = 2;
+  int final_k = rSPR_branch_and_bound_mult_hlpr(T1, T2, k, sibling_groups, &singletons, NULL, &AFs, &num_ties);  
+
+  //print AFs
+  if (!AFs.empty() && final_k > -1) {
+    if (ALL_MAFS) {
+      cout << endl << endl << "FOUND ANSWER" << endl;
+      // TODO: this is a cheap hack
+      for (list<pair<Forest,Forest> >::iterator x = AFs.begin(); x != AFs.end(); x++) {
+	cout << "\tT1: ";
+	x->first.print_components();
+	cout << "\tT2: ";
+	x->second.print_components();
+      }
+    }
+      AFs.front().first.swap(T1);
+  AFs.front().second.swap(T2);
+  sync_twins(T1,T2);
+
+  }
+
+  
+  delete sibling_groups;
+  if (final_k >= 0)
+  return k - final_k;
+  else
+    return final_k;
+    
 }
 
 
 
 
+/* Generates a copy of the data used to recurse on rSPR_branch_and_bound_mult_hlpr so 
+   that original forests aren't clobbered,
+   updates pointers accordingly */
+//TODO: 1 new not 5
 bb_mult_recurse_data *generate_mult_recurse_data(Forest *T1, Forest *T2, list<Node*> *sibling_groups, list<Node*> *singletons) {
-	return rSprBB_Multifurcating::generate_mult_recurse_data_Inline(T1, T2,sibling_groups, singletons);
+
+  bb_mult_recurse_data *data = new bb_mult_recurse_data();
+
+  data->node_map = map<Node*, Node*>();
+  data->T1 = new Forest(T1, &data->node_map);
+  data->T2 = new Forest(T2, &data->node_map);
+  //TODO: smarter way of syncing
+  //for (auto n = node_map.begin(); n != node_map.end(); n++) {
+    //(*n).first->set_twin(node_map[(*n).first->get_twin()]);
+    /*
+      if ((*n).second->is_leaf()) {
+      (*n).second->set_twin(node_map[(*n).first->get_twin()]);
+      node_map[(*n).first->get_twin()]->set_twin((*n).second);
+      cout << "Synced twin : " << (*n).second->str() << " -> " << (*n).second->get_twin()->str() << endl;}*/
+  //}
+  sync_twins(data->T1, data->T2);
+  data->sibling_groups = new list<Node*>();
+  for (auto n = sibling_groups->begin(); n != sibling_groups->end(); n++) {
+    data->sibling_groups->push_back(data->node_map[*n]);
+  }
+  data->singletons = new list<Node*>();
+  for (auto n = singletons->begin(); n != singletons->end(); n++) {
+    data->singletons->push_back(data->node_map[*n]);
+  }
+  return data;
 }
-
-// ALPHA // MULTIFURCATING BB - INLINED AWAY TO rSPrAlgorithmBB_Multifurcating.h!
-
+//Cuts to_cut, adds to components, conditionally adds to singletons
+//Assumes parent is not null and no Null parameters
 void mult_cut_and_cleanup(Node* to_cut, Forest *T2, list<Node*> *singletons) {
-  rSprBB_Multifurcating::mult_cut_and_cleanup_Inline(to_cut, T2, singletons);
+  //Node* T2_a1_next = next_data->node_map[T2_a1];
+  Node* to_cut_p = to_cut->parent();
+  //Cut connections  
+  to_cut->cut_parent();
+  //add as components
+  T2->add_component(to_cut);
+  //Just cut 1 of two children of a1 parent
+  if (to_cut_p->get_children().size() == 1) {
+    if (to_cut_p->parent() == NULL) {
+      to_cut_p->contract(true);
+      if (to_cut_p->is_singleton() && to_cut_p != T2->get_component(0)) {
+      singletons->push_front(to_cut_p);
+      }
+    }
+    else {
+      Node* to_cut_b = to_cut_p->get_children().front();
+      to_cut_p->contract(true);
+      if (to_cut_b->is_singleton() && to_cut_b != T2->get_component(0)) {
+	singletons->push_front(to_cut_b);
+      }
+    }
+  }
+  //Check for singletons
+  if (to_cut->is_singleton())
+    singletons->push_front(to_cut);  
 }
-
-
-
+//cuts everything except node, possibly expanding, adds to components, conditionally adds to singletons
+//Assumes parent is not null and no Null parameters
+//NOTE: potentially unsafe for preorder numbers
 void mult_cut_all_except_and_cleanup(Node* T2_a1, Forest *T2, list<Node*> *singletons) {
-  rSprBB_Multifurcating::mult_cut_all_except_and_cleanup_Inline(T2_a1, T2, singletons);
+  Node* T2_b1;
+  Node* parent = T2_a1->parent();
+  if (parent->get_children().size() == 2) {
+    T2_b1 = parent->get_children().front() == T2_a1 ?
+      parent->get_children().back() :
+      parent->get_children().front();		
+  }
+  else {
+    list<Node*> all_but_a1 = list<Node*>(parent->get_children());
+    all_but_a1.remove(T2_a1);	    
+    T2_b1 = parent->expand_children_out(all_but_a1);
+    T2_b1->set_preorder_number(parent->get_preorder_number());
+  }
+  //hack for now
+  //We immediately contract a1 up so we know the parent's preorder number is available
+  //Cut connections
+
+  T2_b1->cut_parent();
+
+  //add as components
+  T2->add_component(T2_b1);
+	    
+  //Just cut 1 of two children of a2 parent (will always be in this case?)
+  if (parent->get_children().size() == 1) {
+    if (parent->parent() == NULL) {
+      parent->contract(true);
+      if (parent->is_singleton() && parent != T2->get_component(0)) {
+	singletons->push_front(parent);
+      }
+    }
+    else {
+      parent = parent->contract(true);
+      if (T2_a1->is_singleton() && T2_a1 != T2->get_component(0))
+	singletons->push_front(T2_a1);
+    }
+  }
+  if (T2_b1->is_singleton())
+    singletons->push_front(T2_b1);
 }
 
 
-// ALPHA // MULTIFURCATING BB - INLINED AWAY TO rSPrAlgorithmBB_Multifurcating.h!
+
+
+
+
+
+
+
+
+
+
+// ALPHA
+//TODO: UndoMachine, then cleanup all constructors, bb_mult_recurse_data relying on copies of trees
 int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 				    int k,
 				    list<Node*> *sibling_groups, list<Node*> *singletons,
@@ -1771,7 +1931,6 @@ if (!sync_twins(T1, T2))
 	return ans;
 }
 
-// This one is resisting easy inline calculus.
 // rSPR_worse_3_approx_binary recursive helper function
 int rSPR_worse_3_approx_binary_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, list<Node *> *sibling_pairs, Forest **F1, Forest **F2, bool save_forests) {
 	#ifdef DEBUG_APPROX
@@ -1908,7 +2067,7 @@ if(!sibling_pairs->empty()) {
 		#ifdef DEBUG_APPROX
 			cout << "Case 3" << endl;
 		#endif
-
+		
 		//  ensure T2_a is below T2_c
 		if ((T2_a->get_depth() < T2_c->get_depth()
 				&& T2_c->parent() != NULL)
@@ -1916,7 +2075,7 @@ if(!sibling_pairs->empty()) {
 			#ifdef DEBUG_APPROX
 				cout << "swapping" << endl;
 			#endif
-
+		
 			swap(&T1_a, &T1_c);
 			swap(&T2_a, &T2_c);
 
@@ -2028,7 +2187,7 @@ if(!sibling_pairs->empty()) {
 			add_T2_c = false;
 		}
 
-
+		
 		if (!cut_b_only) {
 			um.add_event(new AddComponent(T1));
 			T1->add_component(T1_a);
@@ -2074,7 +2233,7 @@ if (save_forests) {
 	*F1 = new Forest(T1);
 	*F2 = new Forest(T2);
 }
-
+ 
 
 #ifdef DEBUG_UNDO
  while(um.num_events() > 0) {
@@ -2096,7 +2255,7 @@ if (save_forests) {
  um.undo_all();
 #endif
 
-
+ 
 //		 for(int i = 0; i < T1->num_components(); i++)
 //		 	T1->get_component(i)->fix_parents();
 //		 for(int i = 0; i < T2->num_components(); i++)
@@ -2299,9 +2458,57 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, Forest **out_F1,
 }
 
 // T1 and T2 are assumed to already be synced
-// 3 Approx Utility - Inlined to rSprAlgorithm3Approx
 void reduction_leaf_mult(Forest *T1, Forest* T2) {
-	return rSpr3Approx_Multifurcating::reduction_leaf_mult_Inline(T1,T2);
+  
+  list<Node *> *sibling_groups = T1->find_sibling_groups();
+  while (!sibling_groups->empty()) {
+    //Get a sibling group with identical siblings
+    list<Node*>::reverse_iterator i = sibling_groups->rbegin();
+    Node *T1_sibling_group = sibling_groups->back();
+    list<list<Node*>> identical_sibling_groups;
+    T1_sibling_group->find_identical_sibling_groups(&identical_sibling_groups);
+    for (; i != sibling_groups->rend(); i++ ){
+      (*i)->find_identical_sibling_groups(&identical_sibling_groups);
+      if (identical_sibling_groups.size() > 0) {
+	T1_sibling_group = (*i);
+	break;
+      }
+    }
+
+    // Checked all sibling groups, found none with identical groups in T2
+    // Therefore there are no more contractions to be made
+
+    if (identical_sibling_groups.size() == 0) {
+      delete sibling_groups;
+      return;
+      }
+    // Contract them
+    else {
+      list<list<Node *>>::iterator i;
+      for (i = identical_sibling_groups.begin(); i != identical_sibling_groups.end(); i++) {
+	list<Node *> T2_group = (*i);
+	Node *T2_p = T2_group.front()->parent();
+	Node *T1_group_new = T1_sibling_group->contract_twin_group(&T2_group);
+	Node *T2_group_new = T2_p->contract_sibling_group(&T2_group);
+	  
+	T1_group_new->set_twin(T2_group_new);
+	T2_group_new->set_twin(T1_group_new);			
+
+	if (T1_sibling_group->parent() != NULL) {
+	  //Check if the contraction made a new sibling group
+	  T1_sibling_group->parent()->recalculate_non_leaf_children();
+	  if (T1_sibling_group->parent()->is_sibling_group()) {
+	    sibling_groups->push_front(T1_sibling_group->parent());
+	  }
+	}
+	//Check if this contraction removed a sibling group
+	if (!T1_sibling_group->is_sibling_group()) {
+	  sibling_groups->remove(T1_sibling_group);
+	}	  
+      }
+    }
+  }
+  delete sibling_groups;
 }
   
 // T1 and T2 are assumed to already be synced - Boilerplate Call!
@@ -2310,7 +2517,52 @@ void reduction_leaf(Forest *T1, Forest *T2) {
 }
 
 void reduction_leaf(Forest *T1, Forest *T2, UndoMachine *um) {
-	rSpr3Approx::reduction_leaf_Inline(T1,T2,um);
+	list<Node *> *sibling_pairs = T1->find_sibling_pairs();
+	Node *T1_a;
+	Node *T1_c;
+	while (!sibling_pairs->empty()) {
+		T1_a = sibling_pairs->front();
+		sibling_pairs->pop_front();
+		T1_c = sibling_pairs->front();
+		sibling_pairs->pop_front();
+		// shouldn't happen here
+		if (T1_a->parent() == NULL || T1_a->parent() != T1_c->parent()) {
+				continue;
+		}
+		Node *T2_a = T1_a->get_twin();
+		Node *T2_c = T1_c->get_twin();
+		if (T2_a->parent() != NULL && T2_a->parent() == T2_c->parent()) {
+			Node *T1_ac = T1_a->parent();
+			Node *T2_ac = T2_a->parent();
+			T1_ac->contract_sibling_pair_undoable();
+			Node *T2_ac_new = T2_ac->contract_sibling_pair_undoable(T2_a, T2_c);
+			if (T2_ac_new != NULL && T2_ac_new != T2_ac) {
+				T2_ac = T2_ac_new;
+				T2_ac->contract_sibling_pair_undoable();
+			}
+
+			T1_ac->set_twin(T2_ac);
+			T2_ac->set_twin(T1_ac);
+
+			// check if T2_ac is a singleton
+			// also shouldn't happen
+//				if (T2_ac->is_singleton() && !T1_ac->is_singleton() && T2_ac != T2->get_component(0))
+
+			// check if T1_ac is part of a sibling pair
+			if (T1_ac->parent() != NULL &&
+					T1_ac->parent()->is_sibling_pair()) {
+				sibling_pairs->push_back(T1_ac->parent()->lchild());
+				sibling_pairs->push_back(T1_ac->parent()->rchild());
+			}
+			#ifdef DEBUG
+				cout << "\tT1: ";
+				T1->print_components();
+				cout << "\tT2: ";
+				T2->print_components();
+			#endif
+		}
+	}
+	delete sibling_pairs;
 }
 
 /* return true if T1_node matches the chain between T2_node and
@@ -2322,15 +2574,59 @@ int rSPR_total_distance(Node *T1, vector<Node *> &gene_trees) {
 	return rSPR_total_distance(T1, gene_trees, NULL);
 }
 
-// THIS FUNCTION IS EXCLUSIVELY USED IN SUPERTREE!
 int rSPR_total_distance(Node *T1, vector<Node *> &gene_trees,
 		vector<int> *original_scores) {
-	return rsprSupertree::rSPR_total_distance(
-	MAIN_CALL, PREFER_RHO, VERBOSE, FIND_RATE, MULTIFURCATING,
-	&rSPR_branch_and_bound_simple_clustering,
-	T1, gene_trees, original_scores
-	);
+	int total = 0;
+	MAIN_CALL = false;
+	int end = gene_trees.size();
+//	T1->preorder_number();
+	#pragma omp parallel for reduction(+ : total) firstprivate(PREFER_RHO)  // firstprivate(IN_SPLIT_APPROX)
+//	for(int j = 0; j < 10; j++)
+//	cout << "T1: " << T1->str_subtree() << endl;
+	for(int i = 0; i < end; i++) {
+			//		cout << i << endl;
+	  cout << "Trying tree #" << i << " : " << gene_trees[i]->str_subtree() << endl;
+	  int k = rSPR_branch_and_bound_simple_clustering(T1, gene_trees[i], VERBOSE);
 
+	  MULTIFURCATING = true;
+		//MULT_4_BRANCH = true;
+		int mult_k = rSPR_branch_and_bound_simple_clustering(T1, gene_trees[i], VERBOSE);
+		MULTIFURCATING = false;
+		//MULT_4_BRANCH = false;
+		
+		if (k != mult_k) {
+		  cout << "BINARY DOES NOT MATCH MULT" << endl;
+		  cout << "T1: " << T1->str_subtree() << endl;;
+		  cout << "BINARY k = " << k << " mult_k = " << mult_k << endl;
+		  break;
+		  }
+		else {
+		  cout << "\tMATCHES: k = " << k << endl;
+		}
+		
+		//cout << "\t: k = " << k << endl;
+//		k *= mylog2(gene_trees[i]->size());
+
+		if (original_scores != NULL)
+			(*original_scores)[i] = k;
+		total += k;
+//		cout << "T2: " << gene_trees[i]->str_subtree() << endl;
+//		cout << " k: " << k << endl;
+		if (FIND_RATE) {
+			if (k > 0) {
+				int size = gene_trees[i]->find_leaves().size();
+//				cout << k << endl;
+//				cout << size << endl;
+				cout << "rate=" << (float)k / size << endl;
+//				cout << T1->str_subtree() << endl;
+//				cout << gene_trees[i]->str_subtree() << endl;
+			}
+		}
+//		Forest F1 = Forest(T1);
+//		Forest F2 = Forest(gene_trees[i]);
+//		total += rSPR_branch_and_bound(&F1, &F2);
+	}
+	return total;
 }
 
 // BOILERPLATE CALL!
@@ -3036,7 +3332,7 @@ bool contains_bipartition(Node *n, int pre_start, int pre_end,
 }
 
 
-// This cannot be moved using inline calculus.
+// ToDo; Apply Inline Calculus
 // root the tree based on an outgroup
 // returns false if the outgroup is not found or not a clade
 bool outgroup_root(Node *T, set<string, StringCompare> outgroup) {
