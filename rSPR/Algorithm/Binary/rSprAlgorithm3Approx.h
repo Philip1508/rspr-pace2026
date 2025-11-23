@@ -16,12 +16,12 @@
 
 
 
-#include "../../DataStructures/Forest.h"
-#include "../../DataStructures/ClusterForest.h"
-#include "../..//UndecipheredComponents/LCA.h"
-#include "../..//DataStructures/ClusterInstance.h"
-#include "../..//DataStructures/SiblingPair.h"
-#include "../..//DataStructures/UndoMachine.h"
+#include "../../../DataStructures/Forest.h"
+#include "../../../DataStructures/ClusterForest.h"
+#include "../../../UndecipheredComponents/LCA.h"
+#include "../../../DataStructures/ClusterInstance.h"
+#include "../../../DataStructures/SiblingPair.h"
+#include "../../../DataStructures/UndoMachine.h"
 
 #define RSPR
 //#define DEBUG 1

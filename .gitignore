@@ -6,3 +6,6 @@ _test
 .idea/misc.xml
 .idea/vcs.xml
 debug/*
+/debug
+CMakeLists.txt
+/debug

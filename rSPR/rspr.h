@@ -63,8 +63,8 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 #include "../DataStructures/UndoMachine.h"
 
 #include "Utility/rSprUtility.h"
-#include "Algorithm/rSprAlgorithm3Approx.h"
-#include "Algorithm/rSprAlgorithmBB.h"
+#include "Algorithm/Binary/rSprAlgorithm3Approx.h"
+#include "Algorithm/Binary/rSprAlgorithmBB.h"
 using namespace std;
 
 

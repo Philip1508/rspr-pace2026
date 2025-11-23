@@ -1,4 +1,26 @@
+#pragma once
+#include <cstdio>
+#include <cstdlib>
+#include <string>
+#include <cstring>
+#include <iostream>
+#include <sstream>
+#include <climits>
+#include <vector>
+#include <map>
+#include <set>
+#include <list>
+#include <algorithm>
+#include <functional>
 
+
+
+#include "../../../DataStructures/Forest.h"
+#include "../../../DataStructures/ClusterForest.h"
+#include "../../../UndecipheredComponents/LCA.h"
+#include "../../../DataStructures/ClusterInstance.h"
+#include "../../../DataStructures/SiblingPair.h"
+#include "../../../DataStructures/UndoMachine.h"
 
 
 
